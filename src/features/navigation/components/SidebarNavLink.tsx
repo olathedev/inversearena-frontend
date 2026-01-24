@@ -5,7 +5,13 @@ import { usePathname } from "next/navigation";
 
 import type { NavItem } from "../navItems";
 
-export function SidebarNavLink({ href, label }: NavItem) {
+import type { ReactNode } from "react";
+
+export function SidebarNavLink({
+  href,
+  label,
+  icon,
+}: NavItem & { icon: ReactNode }) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
@@ -13,15 +19,14 @@ export function SidebarNavLink({ href, label }: NavItem) {
     <Link
       href={href}
       className={[
-        "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold tracking-wide transition-colors",
+        "flex w-full items-center gap-3 rounded-r-sm py-3 pl-3 pr-4 text-sm font-semibold tracking-wide transition-all",
         isActive
-          ? "bg-[#0f2410] text-[#39ff14]"
-          : "text-zinc-300 hover:bg-white/5 hover:text-white",
+          ? "border-l-2 border-[#39ff14] bg-white/5 text-[#39ff14]"
+          : "border-l-2 border-transparent text-zinc-400 hover:bg-white/5 hover:text-white",
       ].join(" ")}
     >
-      <span className="inline-block size-5 rounded bg-white/10" />
+      <span className="shrink-0">{icon}</span>
       <span>{label}</span>
     </Link>
   );
 }
-
