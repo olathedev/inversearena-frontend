@@ -5,12 +5,13 @@ import { Sidebar } from "@/features/navigation/components/Sidebar";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen text-white">
-      <div className="mx-auto flex min-h-screen max-w-[1400px]">
-        <div className="w-[320px] shrink-0">
+      <div className="fixed inset-y-0 left-0 w-[320px] overflow-y-auto">
           <Sidebar />
-        </div>
+      </div>
 
-        <main className="flex-1 p-6">{children}</main>
+    
+      <div className="min-h-screen pl-[320px]">
+        <main className="p-6">{children}</main>
       </div>
     </div>
   );
