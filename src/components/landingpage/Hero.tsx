@@ -1,3 +1,6 @@
+import React from 'react';
+import { useState } from "react";
+
 const Hero = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
 

@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import Modal from '../ui/Modal';
+import { Modal } from '../ui/Modal';
 
 interface JoinArenaModalProps {
   isOpen: boolean;
