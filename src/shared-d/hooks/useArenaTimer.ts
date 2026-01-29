@@ -176,3 +176,19 @@ export function useArenaTimer({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isRunning, rawSeconds, updateTimer]);
+  // Return the hook API with stable references and computed values
+  return {
+    // State values
+    rawSeconds,
+    formattedTime: formattedTime(rawSeconds),
+    progress: progress(rawSeconds),
+    isTensionMode,
+    
+    // Control methods (stable references via useCallback)
+    start,
+    pause,
+    resume,
+    reset,
+    sync,
+  };
+}
