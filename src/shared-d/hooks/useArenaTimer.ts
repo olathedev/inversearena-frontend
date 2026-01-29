@@ -123,3 +123,33 @@ export function useArenaTimer({
       lastUpdateRef.current = now;
     }
   }, [initialSeconds, isRunning]);
+  // Effect to manage the interval lifecycle
+  useEffect(() => {
+    if (isRunning && rawSeconds > 0) {
+      intervalRef.current = setInterval(updateTimer, 100); // 100ms for high precision
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isRunning, rawSeconds, updateTimer]);
+
+  // Effect to handle timer completion
+  useEffect(() => {
+    if (rawSeconds === 0 && isRunning) {
+      setIsRunning(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  }, [rawSeconds, isRunning]);
