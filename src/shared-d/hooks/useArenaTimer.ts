@@ -94,3 +94,32 @@ export function useArenaTimer({
     lastUpdateRef.current = now;
     setIsRunning(true);
   }, [isRunning, initialSeconds, rawSeconds]);
+  const reset = useCallback(() => {
+    setIsRunning(false);
+    setRawSeconds(initialSeconds);
+    startTimeRef.current = null;
+    lastUpdateRef.current = null;
+    
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, [initialSeconds]);
+
+  // Server synchronization method (mock implementation for now)
+  const sync = useCallback((serverSeconds: number) => {
+    // Validate server seconds
+    if (serverSeconds < 0 || serverSeconds > initialSeconds) {
+      console.warn('useArenaTimer: Invalid server seconds provided for sync');
+      return;
+    }
+    
+    setRawSeconds(serverSeconds);
+    
+    // If timer is running, adjust the start time reference
+    if (isRunning) {
+      const now = Date.now();
+      startTimeRef.current = now - (initialSeconds - serverSeconds) * 1000;
+      lastUpdateRef.current = now;
+    }
+  }, [initialSeconds, isRunning]);
