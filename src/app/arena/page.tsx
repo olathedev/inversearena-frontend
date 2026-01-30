@@ -7,6 +7,7 @@ import {
   TensionBar,
   ChooseYourFate,
   TotalYieldPot,
+  RoundResolvedOverlay,
   EliminationSummaryOverlay,
 } from "@/components/arena/core";
 import { useWallet } from "@/shared-d/hooks/useWallet";
@@ -24,6 +25,11 @@ export default function ArenaPage() {
   const [isJoined, setIsJoined] = useState(false); // Mock state for demo
   const [hasWon, setHasWon] = useState(false); // Mock win state
   const [showEliminationSummary, setShowEliminationSummary] = useState(false);
+
+  // Round Resolution State
+  const [showRoundOverlay, setShowRoundOverlay] = useState(false);
+  const [roundResult, setRoundResult] = useState<"prevailed" | "voided">("prevailed");
+  const [currentRound, setCurrentRound] = useState(1);
 
   // Transaction Modal State
   const [showTxModal, setShowTxModal] = useState(false);
@@ -100,7 +106,15 @@ export default function ArenaPage() {
               {/* Top row: Choose Your Fate + Timer */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ChooseYourFate />
-                <Timer initialSeconds={5} />
+                <Timer
+                  initialSeconds={15}
+                  onTimeUp={() => {
+                    // Simulate round resolution
+                    const userWon = selectedChoice === "tails"; // Mock: tails wins
+                    setRoundResult(userWon ? "prevailed" : "voided");
+                    setShowRoundOverlay(true);
+                  }}
+                />
               </div>
 
               {/* Tension Bar */}
@@ -297,6 +311,31 @@ export default function ArenaPage() {
         }}
       />
 
+      {/* Round Resolved Overlay */}
+      <RoundResolvedOverlay
+        isOpen={showRoundOverlay}
+        status={roundResult}
+        roundNumber={currentRound}
+        casualties={42}
+        victors={18}
+        majorityPercent={70}
+        minorityPercent={30}
+        winnerPath="tails"
+        txHash="0x7a3f...8b2c"
+        onProceed={() => {
+          setShowRoundOverlay(false);
+          setCurrentRound((prev) => prev + 1);
+          setSelectedChoice(null);
+        }}
+        onJoinAnother={() => {
+          setShowRoundOverlay(false);
+          setCurrentRound(1);
+          setSelectedChoice(null);
+          setIsJoined(false);
+        }}
+      />
+
+      {/* Elimination Summary Overlay */}
       <EliminationSummaryOverlay
         isOpen={showEliminationSummary}
         roundsSurvived={3}
@@ -308,7 +347,6 @@ export default function ArenaPage() {
         onExitToLobby={() => setShowEliminationSummary(false)}
         onJoinNewArena={() => setShowEliminationSummary(false)}
       />
-
     </>
   );
 }
