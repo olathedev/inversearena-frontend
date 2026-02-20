@@ -1,21 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence, type Variants } from "framer-motion";
-
-export interface RoundResolvedOverlayProps {
-  isOpen?: boolean;
-  status: "survived" | "eliminated";
-  roundNumber: number;
-  livePopulation: number;
-  totalPopulation: number;
-  eliminatedPercent: number;
-  currentPot: number;
-  potGrowth: number;
-  majorityChoice: "heads" | "tails";
-  txHash: string;
-  onProceed: () => void;
-}
 
 const backdrop: Variants = {
   hidden: { opacity: 0 },
@@ -29,6 +14,7 @@ const container: Variants = {
     scale: 1,
     transition: { type: "spring" as const, stiffness: 260, damping: 25 },
   },
+main
 };
 
 const cardVariants = {
