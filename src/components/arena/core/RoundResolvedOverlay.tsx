@@ -1,22 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import type { Variants } from "framer-motion";
-
-export interface RoundResolvedOverlayProps {
-  isOpen?: boolean;
-  status: "survived" | "eliminated";
-  roundNumber: number;
-  livePopulation: number;
-  totalPopulation: number;
-  eliminatedPercent: number;
-  currentPot: number;
-  potGrowth: number;
-  majorityChoice: "heads" | "tails";
-  txHash: string;
-  onProceed: () => void;
-}
 
 const backdrop: Variants = {
   hidden: { opacity: 0 },
@@ -30,6 +14,7 @@ const container: Variants = {
     scale: 1,
     transition: { type: "spring" as const, stiffness: 260, damping: 25 },
   },
+main
 };
 
 const cardVariants = {
@@ -63,7 +48,7 @@ export const RoundResolvedOverlay: React.FC<RoundResolvedOverlayProps> = ({
   const startHold = () => {
     setHolding(true);
     if (holdProgress.current) holdProgress.current.style.width = "0%";
-    const start = Date.now();
+    let start = Date.now();
     const tick = () => {
       const elapsed = Date.now() - start;
       const pct = Math.min(100, (elapsed / 1000) * 100);
