@@ -8,6 +8,7 @@ import { MongoTransactionRepository } from "./repositories/mongoTransactionRepos
 import { PaymentService } from "./services/paymentService";
 import { PaymentWorker } from "./workers/paymentWorker";
 import { AdminService } from "./services/adminService";
+import { AuthService } from "./services/authService";
 import { createApp } from "./app";
 
 const PORT = Number(process.env.PORT ?? 3001);
@@ -22,8 +23,9 @@ async function main() {
   const paymentService = new PaymentService(transactions);
   const paymentWorker = new PaymentWorker(transactions, paymentService);
   const adminService = new AdminService();
+  const authService = new AuthService();
 
-  const app = createApp({ paymentService, paymentWorker, transactions, adminService });
+  const app = createApp({ paymentService, paymentWorker, transactions, adminService, authService });
 
   app.listen(PORT, () => {
     console.log(`InverseArena backend listening on http://localhost:${PORT}`);
