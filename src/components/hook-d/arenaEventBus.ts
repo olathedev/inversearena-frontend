@@ -155,3 +155,105 @@ export interface ArenaEventMap {
   'pot:distributed': PotDistributedPayload;
   'game:stateChanged': GameStateChangedPayload;
 }
+
+
+// ============================================================================
+// EventBus Class
+// ============================================================================
+
+/**
+ * Generic EventBus class for managing event subscriptions and emissions
+ * 
+ * @template EventMap - Map of event names to their payload types
+ */
+class EventBus<EventMap extends Record<string, any>> {
+  /**
+   * Internal storage for event listeners
+   * Maps event names to Sets of listener functions
+   */
+  private listeners: Map<keyof EventMap, Set<EventListener<any>>>;
+
+  /**
+   * Maximum number of listeners per event before warning
+   */
+  private maxListeners: number;
+
+  /**
+   * Flag indicating if we're in development mode
+   */
+  private isDevelopment: boolean;
+
+  /**
+   * Creates a new EventBus instance
+   * 
+   * @param maxListeners - Maximum listeners per event (default: 20)
+   */
+  constructor(maxListeners: number = 20) {
+    this.listeners = new Map();
+    this.maxListeners = maxListeners;
+    // Detect development environment
+    this.isDevelopment = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
+  }
+
+  /**
+   * Subscribe to an event
+   * 
+   * @param event - Event name to subscribe to
+   * @param listener - Callback function to invoke when event is emitted
+   * @returns Unsubscribe function to remove the listener
+   * 
+   * @example
+   * const unsubscribe = arenaEventBus.on('round:started', (payload) => {
+   *   console.log('Round started:', payload.roundNumber);
+   * });
+   * 
+   * // Later, to unsubscribe:
+   * unsubscribe();
+   */
+  on<K extends keyof EventMap>(
+    event: K,
+    listener: EventListener<EventMap[K]>
+  ): UnsubscribeFn {
+    // Create event entry if it doesn't exist
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+
+    // Get the listener set for this event
+    const eventListeners = this.listeners.get(event)!;
+
+    // Add the listener to the set
+    eventListeners.add(listener);
+
+    // Check for potential memory leaks
+    this.checkListenerCount(event);
+
+    // Return unsubscribe function
+    return () => {
+      eventListeners.delete(listener);
+      // Clean up empty event entries
+      if (eventListeners.size === 0) {
+        this.listeners.delete(event);
+      }
+    };
+  }
+
+  /**
+   * Check if listener count exceeds threshold and warn in development
+   * 
+   * @param event - Event name to check
+   */
+  private checkListenerCount(event: keyof EventMap): void {
+    const eventListeners = this.listeners.get(event);
+    if (!eventListeners) return;
+
+    const listenerCount = eventListeners.size;
+
+    if (this.isDevelopment && listenerCount > this.maxListeners) {
+      console.warn(
+        `Possible memory leak detected: Event "${String(event)}" has ${listenerCount} listeners ` +
+        `(max: ${this.maxListeners}). This may indicate listeners are not being cleaned up properly.`
+      );
+    }
+  }
+}
