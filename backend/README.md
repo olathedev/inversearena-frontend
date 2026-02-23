@@ -16,6 +16,15 @@ See [QUICKSTART_ROUNDS.md](./QUICKSTART_ROUNDS.md) for usage.
 ### 💰 Payout Execution
 Soroban-based winner distribution system.
 
+### 📊 Metrics & Monitoring
+Prometheus-compatible metrics at `/metrics`:
+- HTTP request rates and latencies
+- Worker job queue lengths
+- Transaction confirmation rates
+- Round resolution metrics
+
+See [docs/METRICS.md](./docs/METRICS.md) for details.
+
 ## Quick Start
 
 ### Setup
@@ -28,6 +37,13 @@ npm run dev
 ### Run Tests
 ```bash
 npx tsx tests/round.integration.test.ts
+npx tsx tests/payment.integration.test.ts
+npx tsx tests/metrics.test.ts
+```
+
+### View Metrics
+```bash
+curl http://localhost:3001/metrics
 ```
 
 ### Start Monitoring
@@ -67,6 +83,8 @@ Set these values in deployment secrets (never commit private keys):
 
 ## Documentation
 
+- [Metrics & Monitoring](./docs/METRICS.md) - Prometheus metrics guide
 - [Round State Machine](./docs/ROUND_STATE_MACHINE.md) - Architecture details
-- [Quick Start Guide](./QUICKSTART_ROUNDS.md) - Getting started
-- [Implementation Summary](./IMPLEMENTATION_SUMMARY.md) - Feature overview
+- [Payout Execution](./docs/PAYOUT_EXECUTION.md) - Payment system guide
+- [Quick Start Guide](./docs/QUICKSTART_ROUNDS.md) - Getting started
+- [Implementation Summary](./docs/IMPLEMENTATION_SUMMARY.md) - Feature overview

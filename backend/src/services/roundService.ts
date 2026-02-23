@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { RoundRepository } from '../repositories/roundRepository';
 import type { RoundInput, RoundResolution, Payout } from '../types/round';
 import { RoundState } from '../types/round';
-import { roundMetrics } from '../utils/roundMetrics';
+import { roundResolutionsTotal, roundResolutionDuration } from '../utils/metrics';
 
 export class RoundService {
   private roundRepo: RoundRepository;
@@ -12,8 +12,7 @@ export class RoundService {
   }
 
   async resolveRound(input: RoundInput): Promise<RoundResolution> {
-    const startTime = Date.now();
-    let success = false;
+    const start = Date.now();
 
     try {
       const result = await this.prisma.$transaction(async (tx) => {
@@ -69,11 +68,15 @@ export class RoundService {
         return { eliminatedPlayers, payouts, poolBalances };
       });
 
-      success = true;
-      roundMetrics.recordResolution(Date.now() - startTime, true, result.eliminatedPlayers.length);
+      const duration = (Date.now() - start) / 1000;
+      roundResolutionDuration.observe(duration);
+      roundResolutionsTotal.inc({ status: 'success' });
+      
       return result;
     } catch (error) {
-      roundMetrics.recordResolution(Date.now() - startTime, false, 0);
+      const duration = (Date.now() - start) / 1000;
+      roundResolutionDuration.observe(duration);
+      roundResolutionsTotal.inc({ status: 'error' });
       throw error;
     }
   }

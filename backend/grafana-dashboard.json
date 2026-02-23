@@ -1,92 +1,69 @@
 {
   "dashboard": {
-    "title": "InverseArena - Round State Machine",
+    "title": "InverseArena Backend Metrics",
     "panels": [
       {
-        "title": "Round Resolutions (Total)",
-        "type": "stat",
+        "title": "HTTP Request Rate",
+        "type": "graph",
         "targets": [
           {
-            "expr": "round_resolutions_total",
-            "legendFormat": "Total Resolutions"
+            "expr": "rate(http_requests_total[5m])",
+            "legendFormat": "{{method}} {{route}} {{status}}"
           }
         ]
       },
       {
-        "title": "Success Rate",
-        "type": "gauge",
-        "targets": [
-          {
-            "expr": "round_success_rate",
-            "legendFormat": "Success %"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "min": 0,
-            "max": 100,
-            "thresholds": {
-              "steps": [
-                { "value": 0, "color": "red" },
-                { "value": 90, "color": "yellow" },
-                { "value": 95, "color": "green" }
-              ]
-            }
-          }
-        }
-      },
-      {
-        "title": "Average Resolution Duration",
+        "title": "HTTP Request Duration (p95)",
         "type": "graph",
         "targets": [
           {
-            "expr": "round_resolution_duration_avg_ms",
-            "legendFormat": "Avg Duration (ms)"
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{method}} {{route}}"
           }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "ms"
-          }
-        }
+        ]
       },
       {
-        "title": "Resolution Errors",
-        "type": "stat",
+        "title": "Worker Jobs Pending",
+        "type": "graph",
         "targets": [
           {
-            "expr": "round_resolution_errors_total",
-            "legendFormat": "Errors"
+            "expr": "worker_jobs_pending",
+            "legendFormat": "{{job_type}}"
           }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "thresholds"
-            },
-            "thresholds": {
-              "steps": [
-                { "value": 0, "color": "green" },
-                { "value": 1, "color": "yellow" },
-                { "value": 5, "color": "red" }
-              ]
-            }
-          }
-        }
+        ]
       },
       {
-        "title": "Elimination Distribution",
-        "type": "piechart",
+        "title": "Transaction Confirmation Rate",
+        "type": "graph",
         "targets": [
           {
-            "expr": "round_eliminations_distribution",
-            "legendFormat": "{{bucket}}"
+            "expr": "rate(txs_confirmed_total[5m])",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "Round Resolution Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(round_resolutions_total[5m])",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "Round Resolution Duration (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(round_resolution_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95"
           }
         ]
       }
     ],
-    "refresh": "5s",
+    "refresh": "10s",
     "time": {
       "from": "now-1h",
       "to": "now"
