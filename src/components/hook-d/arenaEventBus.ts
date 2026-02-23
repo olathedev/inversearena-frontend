@@ -288,4 +288,59 @@ class EventBus<EventMap extends Record<string, any>> {
       }
     });
   }
+
+  /**
+   * Manually remove a specific listener from an event
+   * 
+   * @param event - Event name
+   * @param listener - Listener function to remove
+   * 
+   * @example
+   * const myListener = (payload) => console.log(payload);
+   * arenaEventBus.on('round:started', myListener);
+   * 
+   * // Later, remove it manually:
+   * arenaEventBus.off('round:started', myListener);
+   */
+  off<K extends keyof EventMap>(
+    event: K,
+    listener: EventListener<EventMap[K]>
+  ): void {
+    const eventListeners = this.listeners.get(event);
+
+    // Event or listener doesn't exist - silent no-op
+    if (!eventListeners) {
+      return;
+    }
+
+    // Remove the specific listener
+    eventListeners.delete(listener);
+
+    // Clean up empty event entries
+    if (eventListeners.size === 0) {
+      this.listeners.delete(event);
+    }
+  }
+
+  /**
+   * Remove all listeners for a specific event, or all listeners for all events
+   * 
+   * @param event - Optional event name. If omitted, clears all events.
+   * 
+   * @example
+   * // Clear all listeners for a specific event:
+   * arenaEventBus.clear('round:started');
+   * 
+   * // Clear all listeners for all events:
+   * arenaEventBus.clear();
+   */
+  clear(event?: keyof EventMap): void {
+    if (event !== undefined) {
+      // Clear specific event
+      this.listeners.delete(event);
+    } else {
+      // Clear all events
+      this.listeners.clear();
+    }
+  }
 }
