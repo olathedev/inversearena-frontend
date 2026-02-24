@@ -23,19 +23,19 @@ export default function ArenaV2SettingsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#060d1f] px-4 py-6 text-white sm:px-8 lg:px-10">
-      <div className="mx-auto w-full max-w-[1160px] rounded-md border-2 border-[#20345f] bg-[#0a1430] p-4 shadow-[0_0_0_2px_#08132a] sm:p-6">
-        <header className="mb-6 flex flex-col gap-4 border-b border-[#1d2c52] pb-4 sm:flex-row sm:items-start sm:justify-between">
+    <main className="min-h-screen bg-[#060d1f] px-4 py-6 text-[#d8e4ff] sm:px-8 lg:px-10">
+      <div className="mx-auto w-full max-w-290 rounded-md border-2 border-[#273a63] bg-[#0b1836] p-4 shadow-[0_0_0_2px_#08132a] sm:p-6">
+        <header className="mb-6 flex flex-col gap-4 border-b border-[#22345b] pb-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="font-pixel text-4xl uppercase tracking-[0.12em] text-white sm:text-5xl">GLOBAL_SETTINGS</h1>
-            <p className="mt-2 font-pixel text-[10px] uppercase tracking-[0.16em] text-white/45">
+            <h1 className="font-pixel text-4xl uppercase tracking-[0.12em] text-[#eef4ff] sm:text-5xl">GLOBAL_SETTINGS</h1>
+            <p className="mt-2 font-pixel text-[10px] uppercase tracking-[0.16em] text-[#8b9bc0]">
               CONFIGURE_TERMINAL_INTERFACE_AND_AUDIO_ARRAYS
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 self-start border border-[#1f7f33] bg-[#0a2015] px-3 py-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#31ff34] shadow-[0_0_10px_rgba(49,255,52,0.9)] animate-pulse" />
-            <span className="font-pixel text-[9px] uppercase tracking-[0.14em] text-[#48ff54]">LIVE_CONNECTION_STABLE</span>
+          <div className="inline-flex items-center gap-2 self-start border border-[#20612a] bg-[#092212] px-3 py-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#39ff14] shadow-[0_0_10px_rgba(57,255,20,0.9)] animate-pulse" />
+            <span className="font-pixel text-[9px] uppercase tracking-[0.14em] text-[#5eff52]">LIVE_CONNECTION_STABLE</span>
           </div>
         </header>
 
@@ -54,7 +54,7 @@ export default function ArenaV2SettingsPage() {
 
           <div className="space-y-4">
             <SettingsCard title="ENERGY_PULSE">
-              <p className="mb-4 font-pixel text-[9px] uppercase tracking-[0.13em] text-white/45">
+              <p className="mb-4 font-pixel text-[9px] uppercase tracking-[0.13em] text-[#8b9bc0]">
                 ENABLE_VISUAL_RWA_UI_PULSES_FOR_LIVE_YIELD
               </p>
               <button
@@ -62,8 +62,8 @@ export default function ArenaV2SettingsPage() {
                 onClick={() => setEnergyPulseEnabled((prev) => !prev)}
                 className={`flex h-12 w-full items-center justify-between border-2 border-black px-3 font-pixel text-[11px] uppercase tracking-[0.14em] transition ${
                   energyPulseEnabled
-                    ? "bg-[#30ff33] text-black hover:brightness-95"
-                    : "bg-[#0f1220] text-white hover:border-[#30ff33]"
+                    ? "bg-[#39ff14] text-black hover:brightness-95"
+                    : "bg-[#0e1528] text-[#d8e4ff] hover:border-[#39ff14]"
                 }`}
               >
                 <span>{energyPulseEnabled ? "ENABLED" : "DISABLED"}</span>
@@ -78,8 +78,8 @@ export default function ArenaV2SettingsPage() {
                   onClick={() => setColorMode("dark")}
                   className={`h-11 w-full border-2 border-black font-pixel text-[10px] uppercase tracking-[0.14em] transition ${
                     colorMode === "dark"
-                      ? "bg-[#30ff33] text-black"
-                      : "bg-[#0f1220] text-white hover:border-[#30ff33]"
+                      ? "bg-[#39ff14] text-black"
+                      : "bg-[#0e1528] text-[#d8e4ff] hover:border-[#39ff14]"
                   }`}
                 >
                   DARK_MODE
@@ -89,8 +89,8 @@ export default function ArenaV2SettingsPage() {
                   onClick={() => setColorMode("high-contrast")}
                   className={`h-11 w-full border-2 font-pixel text-[10px] uppercase tracking-[0.14em] transition ${
                     colorMode === "high-contrast"
-                      ? "border-[#30ff33] bg-[#30ff33] text-black"
-                      : "border-[#203157] bg-transparent text-white/85 hover:border-[#30ff33]"
+                      ? "border-[#39ff14] bg-[#39ff14] text-black"
+                      : "border-[#25365d] bg-transparent text-[#d8e4ff] hover:border-[#39ff14]"
                   }`}
                 >
                   HIGH_CONTRAST_TERMINAL
@@ -115,11 +115,11 @@ export default function ArenaV2SettingsPage() {
           <button
             type="button"
             onClick={handleSave}
-            className="h-14 w-full border-2 border-[#0f3f0c] bg-[#30ff33] font-pixel text-2xl uppercase tracking-[0.2em] text-black transition hover:brightness-95"
+            className="h-14 w-full border-2 border-[#236f2d] bg-[#39ff14] font-pixel text-2xl uppercase tracking-[0.2em] text-black transition hover:brightness-95"
           >
             SAVE_CONFIGURATION_SEQUENCE
           </button>
-          <p className="h-5 text-center font-pixel text-[10px] uppercase tracking-[0.18em] text-[#55ff5e]">
+          <p className="h-5 text-center font-pixel text-[10px] uppercase tracking-[0.18em] text-[#62ff5f]">
             {saveState === "saved" ? "CONFIGURATION_SEQUENCE_SAVED" : ""}
           </p>
         </footer>

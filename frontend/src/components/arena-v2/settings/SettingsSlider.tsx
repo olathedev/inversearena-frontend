@@ -22,23 +22,23 @@ export function SettingsSlider({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="font-pixel text-[10px] uppercase tracking-[0.14em] text-white/70">{label}</label>
-        <span className="font-pixel text-3xl leading-none text-[#30ff33]">{value}%</span>
+        <label className="font-pixel text-[10px] uppercase tracking-[0.14em] text-[#b6c5e2]">{label}</label>
+        <span className="font-pixel text-3xl leading-none text-[#39ff14]">{value}%</span>
       </div>
 
       {segmented ? (
-        <div className="grid grid-cols-10 gap-[2px] border-2 border-black bg-black p-1">
+        <div className="grid grid-cols-10 gap-0.5 border-2 border-black bg-[#05070d] p-1">
           {Array.from({ length: totalSegments }).map((_, index) => (
             <div
               key={`${label}-segment-${index}`}
-              className={`h-6 ${index < filledSegments ? "bg-[#30ff33]" : "bg-[#0f1220]"}`}
+              className={`h-6 ${index < filledSegments ? "bg-[#39ff14]" : "bg-[#0e1425]"}`}
             />
           ))}
         </div>
       ) : (
-        <div className="border-2 border-black bg-black p-1">
-          <div className="h-5 w-full bg-[#0f1220]">
-            <div className="h-full bg-[#30ff33]" style={{ width: `${progress}%` }} />
+        <div className="border-2 border-black bg-[#05070d] p-1">
+          <div className="h-5 w-full bg-[#0e1425]">
+            <div className="h-full bg-[#39ff14]" style={{ width: `${progress}%` }} />
           </div>
         </div>
       )}
@@ -49,7 +49,7 @@ export function SettingsSlider({
         max={max}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="h-2 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:bg-[#0b1020] [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black [&::-webkit-slider-thumb]:bg-[#30ff33]"
+        className="h-2 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:bg-[#0e1527] [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black [&::-webkit-slider-thumb]:bg-[#39ff14]"
       />
     </div>
   );
