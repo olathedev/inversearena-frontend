@@ -38,6 +38,7 @@ export const STAKING_CONTRACT_ID =
   process.env.NEXT_PUBLIC_STAKING_CONTRACT_ID || STAKING_CONTRACT_PLACEHOLDER;
 
 export const NETWORK_PASSPHRASE = STELLAR_NETWORK.PASSPHRASE;
+export const HORIZON_URL = STELLAR_NETWORK.HORIZON_URL.replace(/\/+$/, "");
 export const SOROBAN_RPC_URL = STELLAR_NETWORK.SOROBAN_RPC_URL;
 
 const CreatePoolParamsSchema = z.object({
@@ -54,7 +55,7 @@ async function getAccount(publicKey: string): Promise<Account> {
   const validatedPublicKey = StellarPublicKeySchema.parse(publicKey);
 
   const res = await fetch(
-    `https://horizon-testnet.stellar.org/accounts/${validatedPublicKey}`,
+    `${HORIZON_URL}/accounts/${validatedPublicKey}`,
   );
   if (!res.ok) {
     throw new Error("Account not found on network. Please fund it.");

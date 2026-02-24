@@ -156,6 +156,8 @@ Set allowed web origins with environment variables so CORS can stay strict and c
 ```bash
 ALLOWED_ORIGINS=https://app.inversearena.io,https://staging.inversearena.io
 NEXT_PUBLIC_APP_ORIGIN=https://app.inversearena.io
+NEXT_PUBLIC_HORIZON_URL=https://horizon-testnet.stellar.org
+NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
 ```
 
 Optional API override used by telemetry module:
