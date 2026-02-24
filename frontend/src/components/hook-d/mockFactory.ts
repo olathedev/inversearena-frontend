@@ -92,3 +92,68 @@ function createRNG(seed?: number): RNG {
     next: generator
   };
 }
+
+
+// ============================================================================
+// Generator Layer - Random Value Utilities
+// ============================================================================
+
+/**
+ * Generates a random integer between min (inclusive) and max (inclusive)
+ * 
+ * @param rng - Random number generator
+ * @param min - Minimum value (inclusive)
+ * @param max - Maximum value (inclusive)
+ * @returns Random integer in range [min, max]
+ */
+function randomInt(rng: RNG, min: number, max: number): number {
+  return Math.floor(rng.next() * (max - min + 1)) + min;
+}
+
+/**
+ * Randomly selects an element from an array
+ * 
+ * @param rng - Random number generator
+ * @param array - Array to select from
+ * @returns Random element from the array
+ */
+function randomChoice<T>(rng: RNG, array: T[]): T {
+  const index = Math.floor(rng.next() * array.length);
+  return array[index];
+}
+
+/**
+ * Generates a random timestamp near the current time
+ * 
+ * @param rng - Random number generator
+ * @param baseTime - Base timestamp (defaults to current time)
+ * @returns Random timestamp within ±30 days of base time
+ */
+function randomTimestamp(rng: RNG, baseTime?: number): number {
+  const base = baseTime ?? Date.now();
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+  const offset = (rng.next() - 0.5) * 2 * thirtyDays;
+  return Math.floor(base + offset);
+}
+
+
+/**
+ * Generates a valid-format Stellar address
+ * 
+ * Stellar addresses are 56 characters long, start with 'G', and use base32 encoding.
+ * This generates addresses that match the format but are not cryptographically valid.
+ * 
+ * @param rng - Random number generator
+ * @returns Mock Stellar address string
+ */
+function randomStellarAddress(rng: RNG): string {
+  const base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let address = 'G';
+  
+  for (let i = 0; i < 55; i++) {
+    const index = Math.floor(rng.next() * base32Chars.length);
+    address += base32Chars[index];
+  }
+  
+  return address;
+}
