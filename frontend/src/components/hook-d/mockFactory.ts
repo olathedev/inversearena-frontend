@@ -157,3 +157,86 @@ function randomStellarAddress(rng: RNG): string {
   
   return address;
 }
+
+
+// ============================================================================
+// Factory Layer - Public API
+// ============================================================================
+
+/**
+ * Creates a mock PlayerEntry with sensible defaults
+ * 
+ * @param overrides - Partial PlayerEntry to override defaults
+ * @param options - Factory options including optional seed
+ * @returns Complete PlayerEntry object
+ * 
+ * @example
+ * // Generate random participant
+ * const participant = createMockParticipant();
+ * 
+ * @example
+ * // Generate deterministic participant
+ * const participant = createMockParticipant({}, { seed: 12345 });
+ * 
+ * @example
+ * // Override specific fields
+ * const participant = createMockParticipant({ status: 'ELIMINATED' });
+ */
+export function createMockParticipant(
+  overrides?: Partial<PlayerEntry>,
+  options?: MockFactoryOptions
+): PlayerEntry {
+  const rng = createRNG(options?.seed);
+  
+  const defaults: PlayerEntry = {
+    wallet: randomStellarAddress(rng),
+    status: randomChoice<PlayerStatus>(rng, ['JOINING', 'READY', 'ALIVE', 'ELIMINATED']),
+    joinedAt: Date.now(),
+    currentRound: 1,
+  };
+  
+  return {
+    ...defaults,
+    ...overrides,
+  };
+}
+
+
+/**
+ * Creates a mock RoundResult with sensible defaults
+ * 
+ * @param overrides - Partial RoundResult to override defaults
+ * @param options - Factory options including optional seed
+ * @returns Complete RoundResult object
+ * 
+ * @example
+ * // Generate random round result
+ * const round = createMockRoundResult();
+ * 
+ * @example
+ * // Generate deterministic round result
+ * const round = createMockRoundResult({}, { seed: 12345 });
+ * 
+ * @example
+ * // Override specific fields
+ * const round = createMockRoundResult({ round: 5, eliminatedCount: 10 });
+ */
+export function createMockRoundResult(
+  overrides?: Partial<RoundResult>,
+  options?: MockFactoryOptions
+): RoundResult {
+  const rng = createRNG(options?.seed);
+  
+  const defaults: RoundResult = {
+    round: 1,
+    choice: randomChoice<"HEADS" | "TAILS" | null>(rng, ["HEADS", "TAILS", null]),
+    outcome: randomChoice<"HEADS" | "TAILS">(rng, ["HEADS", "TAILS"]),
+    majorityChoice: randomChoice<"HEADS" | "TAILS">(rng, ["HEADS", "TAILS"]),
+    eliminatedCount: randomInt(rng, 0, 50),
+  };
+  
+  return {
+    ...defaults,
+    ...overrides,
+  };
+}
