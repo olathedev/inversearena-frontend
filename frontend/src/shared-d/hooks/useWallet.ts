@@ -12,6 +12,9 @@ import {
   SignedXdrSchema,
   StellarPublicKeySchema,
 } from "@/shared-d/utils/security-validation";
+import { STELLAR_NETWORK } from "@/components/hook-d/arenaConstants";
+
+const HORIZON_URL = STELLAR_NETWORK.HORIZON_URL.replace(/\/+$/, "");
 
 /**
  * Wallet connection status
@@ -51,7 +54,7 @@ async function fetchAssetBalance(publicKey: string, assetCode: "XLM" | "USDC"): 
 
   try {
     const res = await fetch(
-      `https://horizon-testnet.stellar.org/accounts/${validatedPublicKey}`
+      `${HORIZON_URL}/accounts/${validatedPublicKey}`
     );
     if (!res.ok) {
       return 0;
@@ -198,4 +201,3 @@ export function useWallet(): UseWalletReturn {
     refreshBalance,
   };
 }
-
