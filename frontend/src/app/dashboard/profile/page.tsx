@@ -6,7 +6,7 @@ import { useArenaSettings } from "@/shared-d/hooks/useArenaSettings";
 import { SettingsToggle } from "@/components/arena-v2/settings/SettingsToggle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { LayoutGrid, History, Shield } from "lucide-react";
+import { LayoutGrid, History } from "lucide-react";
 
 // Mock helpers - in a real app these would come from a utils file
 const truncateAddress = (address: string) => {
