@@ -287,38 +287,17 @@ export async function buildClaimWinningsTransaction(
 }
 
 /**
- * Parse Stellar error results to user-friendly messages.
- * Now ContractError-aware: if the error is already a ContractError,
- * returns its message directly.
+ * Parse Stellar / Soroban errors for display in the UI.
+ *
+ * Delegates to `parseContractError` so copy stays aligned with
+ * `contract/ERRORS.md` and `DEFAULT_MESSAGES` in `contract-error.ts`.
+ * On-chain numeric codes are resolved via `contract-error-registry.ts`.
  */
 export function parseStellarError(error: unknown): string {
   if (error instanceof ContractError) {
     return error.message;
   }
-
-  const errorString =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : typeof error === "object" && error !== null && "message" in error
-          ? String((error as { message: unknown }).message)
-          : String(error ?? "");
-
-  if (errorString.includes("tx_bad_auth")) {
-    return "Invalid or unauthorized transaction. Please check your wallet permissions.";
-  }
-  if (errorString.includes("op_underfunded")) {
-    return "Insufficient balance to cover the transaction and fees.";
-  }
-  if (errorString.includes("tx_too_late")) {
-    return "Transaction expired. Please try again.";
-  }
-  if (errorString.includes("User rejected")) {
-    return "Transaction was cancelled by the user.";
-  }
-
-  return errorString || "An unknown error occurred during the transaction.";
+  return parseContractError(error, "parseStellarError").message;
 }
 
 /**
