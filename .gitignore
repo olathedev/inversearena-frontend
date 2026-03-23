@@ -39,3 +39,8 @@ package-lock.json
 GITHUB_ISSUE.md
 
 issues.md
+
+# Rust/Soroban
+target/
+**/*.rs.bk
+Cargo.lock

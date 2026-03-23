@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+    "arena",
+    "factory",
+    "payout",
+    "staking",
+]
+
+[workspace.dependencies]
+soroban-sdk = "22"
