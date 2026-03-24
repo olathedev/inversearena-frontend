@@ -16,175 +16,134 @@ Contracts in this workspace:
 - `payout`
 - `staking`
 
-As of this branch, all four contracts are still scaffold contracts and **do not persist any application state to Soroban storage**. They expose only a `hello()` function and do not define custom storage keys, typed storage records, TTL extensions, or instance state.
-
-That means:
-- there are currently **no storage keys**
-- there are currently **no persisted value types**
-- there are currently **no TTL policies in effect**
-- there are currently **no read/write storage access paths**
-
-This file still documents the present schema explicitly so indexer and contract work can evolve from a clear baseline.
-
 ## Workspace Summary
 
-| Contract | Current public entrypoints | Uses storage? | Storage key schema | TTL policy |
-| --- | --- | --- | --- | --- |
-| `arena` | `hello() -> u32` | No | None | None |
-| `factory` | `hello() -> u32` | No | None | None |
-| `payout` | `hello() -> u32` | No | None | None |
-| `staking` | `hello() -> u32` | No | None | None |
+| Contract | Uses storage? | Storage key schema | TTL policy |
+| --- | --- | --- | --- |
+| `arena` | Yes | `DataKey` enum (persistent) + symbol keys (instance) | Explicit bump on every write |
+| `factory` | Yes | Symbol keys (instance) | Instance-managed |
+| `payout` | No | None | None |
+| `staking` | No | None | None |
 
 ## Storage Key Inventory
 
-There are currently no `DataKey` enums, no symbol-based keys, and no contract storage collections in the workspace.
-
 ### Arena Contract
 
-File:
-- `contract/arena/src/lib.rs`
+File: `contract/arena/src/lib.rs`
 
-Storage keys:
-- None
+#### Persistent storage (`env.storage().persistent()`)
 
-Stored value types:
-- None
+| `DataKey` variant | Value type | Description |
+| --- | --- | --- |
+| `DataKey::Config` | `ArenaConfig` | Round speed configuration; written once on `init` |
+| `DataKey::Round` | `RoundState` | Active round state (number, ledgers, submission count, flags) |
+| `DataKey::Submission(round_number, player)` | `Choice` | A player's Heads/Tails choice for a given round |
 
-Read patterns:
-- None
+#### Instance storage (`env.storage().instance()`)
 
-Write patterns:
-- None
-
-TTL policy:
-- No persistent, temporary, or instance storage is used
-- No TTL extension or bump logic exists
+| Symbol key | Value type | Description |
+| --- | --- | --- |
+| `ADMIN` | `Address` | Contract admin; set once via `initialize` |
+| `P_HASH` | `BytesN<32>` | WASM hash pending upgrade via 48-hour timelock |
+| `P_AFTER` | `u64` | Earliest timestamp at which `execute_upgrade` may be called |
 
 ### Factory Contract
 
-File:
-- `contract/factory/src/lib.rs`
+File: `contract/factory/src/lib.rs`
 
-Storage keys:
-- None
+Instance storage only:
 
-Stored value types:
-- None
+| Symbol key | Value type | Description |
+| --- | --- | --- |
+| `ADMIN` | `Address` | Contract admin |
+| `P_HASH` | `BytesN<32>` | WASM hash pending upgrade |
+| `P_AFTER` | `u64` | Upgrade timelock timestamp |
 
-Read patterns:
-- None
+### Payout and Staking Contracts
 
-Write patterns:
-- None
-
-TTL policy:
-- No persistent, temporary, or instance storage is used
-- No TTL extension or bump logic exists
-
-### Payout Contract
-
-File:
-- `contract/payout/src/lib.rs`
-
-Storage keys:
-- None
-
-Stored value types:
-- None
-
-Read patterns:
-- None
-
-Write patterns:
-- None
-
-TTL policy:
-- No persistent, temporary, or instance storage is used
-- No TTL extension or bump logic exists
-
-### Staking Contract
-
-File:
-- `contract/staking/src/lib.rs`
-
-Storage keys:
-- None
-
-Stored value types:
-- None
-
-Read patterns:
-- None
-
-Write patterns:
-- None
-
-TTL policy:
-- No persistent, temporary, or instance storage is used
-- No TTL extension or bump logic exists
+No custom Soroban storage keys are currently defined or used.
 
 ## Access Pattern Matrix
 
-| Contract | Storage read operations | Storage write operations | Notes |
+### Arena contract
+
+| Function | Keys read | Keys written | TTL bumped |
 | --- | --- | --- | --- |
-| `arena` | None | None | Stateless scaffold contract |
-| `factory` | None | None | Stateless scaffold contract |
-| `payout` | None | None | Stateless scaffold contract |
-| `staking` | None | None | Stateless scaffold contract |
+| `init` | — | `Config`, `Round` | `Config`, `Round` |
+| `start_round` | `Config`, `Round` | `Round` | `Round` |
+| `submit_choice` | `Round`, `Submission(n, player)` | `Submission(n, player)`, `Round` | `Submission(n, player)`, `Round` |
+| `timeout_round` | `Round` | `Round` | `Round` |
+| `get_config` | `Config` | — | — |
+| `get_round` | `Round` | — | — |
+| `get_choice` | `Submission(n, player)` | — | — |
+| `initialize` | `ADMIN` (instance) | `ADMIN` (instance) | — |
+| `propose_upgrade` | `ADMIN` (instance) | `P_HASH`, `P_AFTER` (instance) | — |
+| `execute_upgrade` | `ADMIN`, `P_AFTER`, `P_HASH` (instance) | removes `P_HASH`, `P_AFTER` (instance) | — |
+| `cancel_upgrade` | `ADMIN`, `P_HASH` (instance) | removes `P_HASH`, `P_AFTER` (instance) | — |
 
 ## TTL Policy Baseline
 
-Because no contract currently writes to Soroban storage:
+All **persistent** storage entries in the arena contract are explicitly extended on
+every write. The policy constants are defined in `contract/arena/src/lib.rs`:
 
-- no keys expire
-- no keys are extended
-- no distinction is yet made between instance, persistent, or temporary storage
-- no ledger-based retention policy exists yet
+| Constant | Value (ledgers) | Approximate wall-clock duration |
+| --- | --- | --- |
+| `GAME_TTL_THRESHOLD` | 100,000 | ~5.8 days (at 5 s/ledger) |
+| `GAME_TTL_EXTEND_TO` | 535,680 | ~31 days (at 5 s/ledger) |
 
-This is the baseline future stateful contract work should evolve from. Once storage is introduced, this document should be updated to include:
-- key name
-- key type
-- value type
-- storage class
-- TTL bump policy
-- write path
-- read path
+**Rule**: A `bump(env, key)` helper calls `storage().persistent().extend_ttl(key,
+GAME_TTL_THRESHOLD, GAME_TTL_EXTEND_TO)` immediately after every
+`storage().persistent().set()`. This ensures the TTL is extended to at least
+`GAME_TTL_EXTEND_TO` ledgers from the current ledger whenever it would fall below
+`GAME_TTL_THRESHOLD`, covering the maximum possible game duration.
+
+**Instance storage** (admin key, upgrade proposal keys) relies on the automatic
+instance TTL managed by the Soroban host and is not explicitly bumped by game logic.
+
+**Factory/payout/staking** contracts do not use persistent storage for game state.
 
 ## ER-Style State Diagram
 
-The current state machine is intentionally minimal because no on-chain round, payout, or staking state exists yet.
-
-```mermaid
-stateDiagram-v2
-    [*] --> ContractDeployed
-    ContractDeployed --> StatelessCall: invoke hello()
-    StatelessCall --> ContractDeployed: returns constant
+```
+ArenaConfig (1)
+    │ round_speed_in_ledgers
+    │
+    └──────────────────────────────────────────────────┐
+                                                       │ governs deadline
+RoundState (1)                                         │
+    │ round_number                                     │
+    │ round_start_ledger ──────────────────────────────┘
+    │ round_deadline_ledger
+    │ active
+    │ timed_out
+    │ total_submissions
+    │
+    └─── has many ───► Submission(round_number, player_address)
+                           │ Choice { Heads | Tails }
 ```
 
-## Data Flow Notes
+Round lifecycle state machine:
 
-Current behavior:
-- A contract is deployed
-- A caller invokes `hello()`
-- The contract returns a constant integer
-- No state is read
-- No state is written
-- No state transitions are persisted
+```
+[not initialised]
+    │ init()
+    ▼
+[Config set, Round { active: false }]
+    │ start_round()
+    ▼
+[Round { active: true }]
+    │ submit_choice()  (multiple callers, within deadline)
+    │ timeout_round()  (any caller, after deadline)
+    ▼
+[Round { active: false, timed_out: true }]
+    │ start_round()
+    ▼
+[Round { active: true, round_number + 1 }] ...
+```
 
-Implications for indexers:
-- There is currently no contract-managed entity graph to index
-- There are no storage snapshots to reconstruct
-- Off-chain tooling should treat the workspace as schema-ready but state-empty
+## Historical baseline note
 
-## Expected Future Documentation Shape
-
-When real state is introduced, this document should grow to include sections such as:
-- `DataKey` definitions per contract
-- entity tables for arenas, rounds, submissions, payouts, stakes, and factories
-- key-level TTL policies
-- authorization rules by write path
-- transition diagrams for round lifecycle and payout lifecycle
-
-Until then, the accurate storage model for this workspace is:
+Prior to the implementation of game state storage and TTL management, the accurate
+storage model for this workspace was:
 
 > No custom Soroban storage keys are currently defined or used.
