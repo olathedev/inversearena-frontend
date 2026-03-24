@@ -10,6 +10,8 @@ const ADMIN_KEY: Symbol = symbol_short!("ADMIN");
 const PAUSED_KEY: Symbol = symbol_short!("PAUSED");
 const PENDING_HASH_KEY: Symbol = symbol_short!("P_HASH");
 const EXECUTE_AFTER_KEY: Symbol = symbol_short!("P_AFTER");
+const PRIZE_POOL_KEY: Symbol = symbol_short!("PRIZE");
+const GAME_STATUS_KEY: Symbol = symbol_short!("G_STATUS");
 
 // ── Timelock constant: 48 hours in seconds ────────────────────────────────────
 
@@ -45,6 +47,9 @@ pub enum ArenaError {
     RoundDeadlineOverflow = 8,
     NotInitialized = 9,
     Paused = 10,
+    NoPrizeToClaim = 11,
+    AlreadyClaimed = 12,
+    ReentrancyGuard = 13,
 }
 
 #[contracttype]
@@ -77,6 +82,7 @@ enum DataKey {
     Config,
     Round,
     Submission(u32, Address),
+    PrizeClaimed(Address),
 }
 
 // ── Contract ──────────────────────────────────────────────────────────────────
@@ -377,6 +383,40 @@ impl ArenaContract {
     /// None — read-only, open to any caller.
     pub fn get_choice(env: Env, round_number: u32, player: Address) -> Option<Choice> {
         storage(&env).get(&DataKey::Submission(round_number, player))
+    }
+
+    pub fn claim(env: Env, winner: Address) -> Result<i128, ArenaError> {
+        winner.require_auth();
+
+        if env
+            .storage()
+            .instance()
+            .get::<_, bool>(&GAME_STATUS_KEY)
+            .unwrap_or(false)
+        {
+            return Err(ArenaError::ReentrancyGuard);
+        }
+
+        let prize: i128 = env.storage().instance().get(&PRIZE_POOL_KEY).unwrap_or(0);
+        if prize <= 0 {
+            return Err(ArenaError::NoPrizeToClaim);
+        }
+
+        let prize_key = DataKey::PrizeClaimed(winner.clone());
+        if storage(&env).has(&prize_key) {
+            return Err(ArenaError::AlreadyClaimed);
+        }
+
+        env.storage().instance().set(&GAME_STATUS_KEY, &true);
+
+        storage(&env).set(&prize_key, &prize);
+        bump(&env, &prize_key);
+
+        env.storage().instance().set(&PRIZE_POOL_KEY, &0i128);
+
+        env.storage().instance().set(&GAME_STATUS_KEY, &false);
+
+        Ok(prize)
     }
 
     // ── Upgrade mechanism ────────────────────────────────────────────────────
