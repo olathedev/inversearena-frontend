@@ -34,6 +34,12 @@ pub enum DataKey {
     Payout(u32, Address),
 }
 
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Error {
+    Unauthorized = 1,
+}
+
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct PayoutData {
