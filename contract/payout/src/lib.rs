@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Symbol};
 
 const ADMIN_KEY: Symbol = symbol_short!("ADMIN");
 const TOPIC_PAYOUT_EXECUTED: Symbol = symbol_short!("PAYOUT");
@@ -9,6 +9,12 @@ const TOPIC_PAYOUT_EXECUTED: Symbol = symbol_short!("PAYOUT");
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
     Payout(u32, Address),
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Error {
+    Unauthorized = 1,
 }
 
 #[contracttype]
@@ -65,7 +71,7 @@ impl PayoutContract {
             .expect("not initialized");
 
         if caller != admin {
-            panic!("caller is not authorized to distribute winnings");
+            soroban_sdk::panic_with_error!(&env, Error::Unauthorized);
         }
 
         if amount <= 0 {

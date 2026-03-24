@@ -11,6 +11,16 @@ const MAX_CAPACITY: u32 = 256;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+fn assert_auth_err<T: core::fmt::Debug>(res: Result<T, Result<soroban_sdk::Error, soroban_sdk::InvokeError>>) {
+    assert_eq!(
+        res.unwrap_err().unwrap(),
+        soroban_sdk::Error::from_type_and_code(
+            soroban_sdk::xdr::ScErrorType::Context,
+            soroban_sdk::xdr::ScErrorCode::InvalidAction,
+        )
+    );
+}
+
 fn setup() -> (Env, Address, FactoryContractClient<'static>) {
     let env = Env::default();
     env.mock_all_auths();
@@ -125,7 +135,6 @@ fn test_whitelisted_host_can_create_pool() {
 }
 
 #[test]
-#[should_panic(expected = "caller is not authorized to create pools")]
 fn test_unauthorized_caller_cannot_create_pool() {
     let (env, _admin, client) = setup();
     let wasm_hash = dummy_hash(&env);
@@ -133,7 +142,9 @@ fn test_unauthorized_caller_cannot_create_pool() {
     let unauthorized = Address::generate(&env);
     let creator = Address::generate(&env);
     let stake = MIN_STAKE + 1_000_000;
-    client.create_pool(&unauthorized, &creator, &1u32, &8u32, &stake);
+    
+    let res = client.try_create_pool(&unauthorized, &creator, &1u32, &8u32, &stake);
+    assert_eq!(res.unwrap_err().unwrap(), soroban_sdk::Error::from_contract_error(1));
 }
 
 // ── create_pool stake validation ────────────────────────────────────────────────
@@ -382,7 +393,48 @@ fn test_set_admin_fails_without_admin() {
 }
 
 #[test]
-#[should_panic(expected = "authorize")]
+fn test_unauthorized_set_admin_panics() {
+    let env = Env::default();
+    let contract_id = env.register(FactoryContract, ());
+    // No mock_all_auths()!
+    let client = FactoryContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin);
+    assert_auth_err(client.try_set_admin(&Address::generate(&env)));
+}
+
+#[test]
+fn test_unauthorized_set_arena_wasm_hash_panics() {
+    let env = Env::default();
+    let contract_id = env.register(FactoryContract, ());
+    let client = FactoryContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin);
+    assert_auth_err(client.try_set_arena_wasm_hash(&dummy_hash(&env)));
+}
+
+#[test]
+fn test_unauthorized_whitelist_panics() {
+    let env = Env::default();
+    let contract_id = env.register(FactoryContract, ());
+    let client = FactoryContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin);
+    assert_auth_err(client.try_add_to_whitelist(&Address::generate(&env)));
+    assert_auth_err(client.try_remove_from_whitelist(&Address::generate(&env)));
+}
+
+#[test]
+fn test_unauthorized_set_min_stake_panics() {
+    let env = Env::default();
+    let contract_id = env.register(FactoryContract, ());
+    let client = FactoryContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin);
+    assert_auth_err(client.try_set_min_stake(&1000i128));
+}
+
+#[test]
 fn test_unauthorized_propose_upgrade_panics() {
     let env = Env::default();
     let contract_id = env.register(FactoryContract, ());
@@ -390,11 +442,10 @@ fn test_unauthorized_propose_upgrade_panics() {
     let admin = Address::generate(&env);
     client.initialize(&admin);
 
-    client.propose_upgrade(&dummy_hash(&env));
+    assert_auth_err(client.try_propose_upgrade(&dummy_hash(&env)));
 }
 
 #[test]
-#[should_panic(expected = "authorize")]
 fn test_unauthorized_execute_upgrade_panics() {
     let env = Env::default();
     let contract_id = env.register(FactoryContract, ());
@@ -402,11 +453,10 @@ fn test_unauthorized_execute_upgrade_panics() {
     let admin = Address::generate(&env);
     client.initialize(&admin);
 
-    client.execute_upgrade();
+    assert_auth_err(client.try_execute_upgrade());
 }
 
 #[test]
-#[should_panic(expected = "authorize")]
 fn test_unauthorized_cancel_upgrade_panics() {
     let env = Env::default();
     let contract_id = env.register(FactoryContract, ());
@@ -414,7 +464,7 @@ fn test_unauthorized_cancel_upgrade_panics() {
     let admin = Address::generate(&env);
     client.initialize(&admin);
 
-    client.cancel_upgrade();
+    assert_auth_err(client.try_cancel_upgrade());
 }
 
 // ── Queries tests ────────────────────────────────────────────────────────────

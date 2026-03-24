@@ -48,7 +48,6 @@ fn test_admin_can_distribute_winnings() {
 }
 
 #[test]
-#[should_panic(expected = "caller is not authorized to distribute winnings")]
 fn test_unauthorized_caller_cannot_distribute() {
     let (env, _admin, client) = setup();
     let unauthorized = Address::generate(&env);
@@ -57,7 +56,8 @@ fn test_unauthorized_caller_cannot_distribute() {
     let amount = 1000i128;
     let currency = symbol_short!("XLM");
 
-    client.distribute_winnings(&unauthorized, &idempotency_key, &winner, &amount, &currency);
+    let res = client.try_distribute_winnings(&unauthorized, &idempotency_key, &winner, &amount, &currency);
+    assert_eq!(res.unwrap_err().unwrap(), soroban_sdk::Error::from_contract_error(1));
 }
 
 #[test]

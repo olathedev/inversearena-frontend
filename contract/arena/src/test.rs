@@ -738,8 +738,38 @@ fn test_set_admin_fails_without_admin() {
     client.set_admin(&new_admin);
 }
 
+fn assert_auth_err<T: core::fmt::Debug>(res: Result<T, Result<soroban_sdk::Error, soroban_sdk::InvokeError>>) {
+    assert_eq!(
+        res.unwrap_err().unwrap(),
+        soroban_sdk::Error::from_type_and_code(
+            soroban_sdk::xdr::ScErrorType::Context,
+            soroban_sdk::xdr::ScErrorCode::InvalidAction,
+        )
+    );
+}
+
 #[test]
-#[should_panic(expected = "authorize")]
+fn test_unauthorized_set_admin_panics() {
+    let env = Env::default();
+    let contract_id = env.register(ArenaContract, ());
+    let client = ArenaContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin);
+    assert_auth_err(client.try_set_admin(&Address::generate(&env)));
+}
+
+#[test]
+fn test_unauthorized_pause_panics() {
+    let env = Env::default();
+    let contract_id = env.register(ArenaContract, ());
+    let client = ArenaContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin);
+    assert_auth_err(client.try_pause());
+    assert_auth_err(client.try_unpause());
+}
+
+#[test]
 fn test_unauthorized_propose_upgrade_panics() {
     let env = Env::default();
     let contract_id = env.register(ArenaContract, ());
@@ -747,11 +777,10 @@ fn test_unauthorized_propose_upgrade_panics() {
     let admin = Address::generate(&env);
     client.initialize(&admin);
 
-    client.propose_upgrade(&dummy_hash(&env));
+    assert_auth_err(client.try_propose_upgrade(&dummy_hash(&env)));
 }
 
 #[test]
-#[should_panic(expected = "authorize")]
 fn test_unauthorized_execute_upgrade_panics() {
     let env = Env::default();
     let contract_id = env.register(ArenaContract, ());
@@ -759,11 +788,10 @@ fn test_unauthorized_execute_upgrade_panics() {
     let admin = Address::generate(&env);
     client.initialize(&admin);
 
-    client.execute_upgrade();
+    assert_auth_err(client.try_execute_upgrade());
 }
 
 #[test]
-#[should_panic(expected = "authorize")]
 fn test_unauthorized_cancel_upgrade_panics() {
     let env = Env::default();
     let contract_id = env.register(ArenaContract, ());
@@ -771,8 +799,9 @@ fn test_unauthorized_cancel_upgrade_panics() {
     let admin = Address::generate(&env);
     client.initialize(&admin);
 
-    client.cancel_upgrade();
+    assert_auth_err(client.try_cancel_upgrade());
 }
+
 
 // ── Issue #232: round timeout and stalled game recovery ──────────────────────
 

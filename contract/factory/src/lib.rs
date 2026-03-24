@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, BytesN, Env, Symbol,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, BytesN, Env, Symbol,
 };
 
 // ── Storage keys ─────────────────────────────────────────────────────────────
@@ -49,13 +49,13 @@ const TOPIC_HOST_REMOVED: Symbol = symbol_short!("WL_REM");
 
 // ── Error codes ───────────────────────────────────────────────────────────────
 
-#[contracttype]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum Error {
-    NotInitialized = 1,
-    AlreadyInitialized = 2,
-    Unauthorized = 3,
+    NotInitialized = 2,
+    AlreadyInitialized = 3,
+    Unauthorized = 1,
     NoPendingUpgrade = 4,
     TimelockNotExpired = 5,
     StakeBelowMinimum = 6,
@@ -218,7 +218,7 @@ impl FactoryContract {
         let is_whitelisted = Self::is_whitelisted(env.clone(), caller.clone());
 
         if !is_admin && !is_whitelisted {
-            panic!("caller is not authorized to create pools");
+            soroban_sdk::panic_with_error!(&env, Error::Unauthorized);
         }
 
         let pool_key = (POOL_PREFIX, pool_id);
