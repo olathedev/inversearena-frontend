@@ -15,6 +15,7 @@ import {
 } from "@/shared-d/utils/security-validation";
 import {
   STELLAR_NETWORK,
+  TRANSACTION_CONFIG,
 } from "@/components/hook-d/arenaConstants";
 import {
   ContractError,
@@ -45,16 +46,10 @@ import {
 } from "@/shared-d/utils/soroban-transaction-composer";
 import { CreatePoolParamsSchema } from "@/shared-d/utils/stellar-transaction-schemas";
 import {
-  parseArenaStateFromScVal,
-  parseUserStateFromScVal,
-  buildArenaDisplayState,
-} from "@/shared-d/utils/contract-state-parsers";
-import type {
-  ArenaContractEvent,
-  ArenaState,
-  FetchArenaStateResult,
-  UserState,
-} from "@/shared-d/types/contract-state";
+  extractBoolFromScVal,
+  extractI128FromScVal,
+  extractU32FromScVal,
+} from "@/shared-d/utils/stellar-scval-extract";
 
 // Re-export so consumers can import from one place
 export { ContractError, ContractErrorCode, parseContractError } from "@/shared-d/utils/contract-error";
@@ -115,7 +110,7 @@ export async function buildCreatePoolTransaction(
     const account = await getAccount(publicKey, FN);
     const factory = defaultSorobanClients.createContract(FACTORY_CONTRACT_ID);
 
-    const operation = buildCreatePoolCallOperation(factory, publicKey, validatedParams, {
+    const operation = buildCreatePoolCallOperation(factory, validatedParams, {
       xlmContractId: XLM_CONTRACT_ID,
       usdcContractId: USDC_CONTRACT_ID,
     });
@@ -199,7 +194,7 @@ export async function buildJoinArenaTransaction(
 
     const account = await getAccount(validatedPublicKey, FN);
     const poolContract = defaultSorobanClients.createContract(validatedPoolId);
-    const operation = buildJoinCallOperation(poolContract, validatedPublicKey);
+    const operation = buildJoinCallOperation(poolContract);
 
     return composeUnsignedTransaction(account, {
       fee: getJoinArenaFee(),
@@ -261,7 +256,7 @@ export async function buildClaimWinningsTransaction(
 
     const account = await getAccount(validatedPublicKey, FN);
     const poolContract = defaultSorobanClients.createContract(validatedPoolId);
-    const operation = buildClaimCallOperation(poolContract, validatedPublicKey);
+    const operation = buildClaimCallOperation(poolContract);
 
     return composeUnsignedTransaction(account, {
       fee: getDefaultInvokeBaseFee(),
@@ -291,7 +286,16 @@ export function parseStellarError(error: unknown): string {
 /**
  * Arena state response type
  */
-export type { ArenaContractEvent, ArenaState, FetchArenaStateResult, UserState };
+export interface ArenaStateResponse {
+  arenaId: string;
+  survivorsCount: number;
+  maxCapacity: number;
+  isUserIn: boolean;
+  hasWon: boolean;
+  currentStake: number;
+  potentialPayout: number;
+  roundNumber: number;
+}
 
 /**
  * Fetch the latest arena state from the contract.
@@ -300,7 +304,7 @@ export type { ArenaContractEvent, ArenaState, FetchArenaStateResult, UserState }
 export async function fetchArenaState(
   arenaId: string,
   userAddress?: string,
-): Promise<FetchArenaStateResult> {
+): Promise<ArenaStateResponse> {
   const FN = "fetchArenaState";
   try {
     const validatedArenaId = StellarContractIdSchema.parse(arenaId);
@@ -362,11 +366,13 @@ export async function fetchArenaState(
 
     return {
       arenaId: validatedArenaId,
-      arenaState,
-      userState,
-      isUserIn: userState.active,
-      hasWon: userState.won,
-      ...displayState,
+      survivorsCount,
+      maxCapacity,
+      isUserIn,
+      hasWon,
+      currentStake,
+      potentialPayout,
+      roundNumber,
     };
   } catch (error) {
     throw parseContractError(error, FN);

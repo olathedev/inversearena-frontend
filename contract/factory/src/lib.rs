@@ -352,6 +352,17 @@ impl FactoryContract {
         let salt = env.crypto().sha256(&salt_bin);
 
         // Deploy the contract.
+        #[cfg(test)]
+        let arena_address = {
+            let addr = env
+                .deployer()
+                .with_current_contract(salt)
+                .deployed_address();
+            env.register_at(&addr, arena::ArenaContract, ());
+            addr
+        };
+
+        #[cfg(not(test))]
         let arena_address = env
             .deployer()
             .with_current_contract(salt)
@@ -376,14 +387,7 @@ impl FactoryContract {
             soroban_sdk::vec![&env, env.current_contract_address().into_val(&env)],
         );
 
-        // 3. Set the currency token (admin only).
-        env.invoke_contract::<()>(
-            &arena_address,
-            &soroban_sdk::Symbol::new(&env, "set_token"),
-            soroban_sdk::vec![&env, currency.into_val(&env)],
-        );
-
-        // 4. Transfer admin to the caller.
+        // 3. Transfer admin to the caller.
         env.invoke_contract::<()>(
             &arena_address,
             &soroban_sdk::Symbol::new(&env, "set_admin"),
@@ -398,44 +402,6 @@ impl FactoryContract {
             .publish((TOPIC_POOL_CREATED,), (EVENT_VERSION, pool_id, caller, capacity, stake, arena_address.clone()));
 
         Ok(arena_address)
-    }
-
-    pub fn add_supported_token(env: Env, token: Address) {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&ADMIN_KEY)
-            .expect("not initialized");
-        admin.require_auth();
-        env.storage()
-            .persistent()
-            .set(&DataKey::SupportedToken(token), &true);
-    }
-
-    pub fn create_pool(
-        env: Env,
-        amount: i128,
-        currency: Address,
-        _round_speed: u32,
-        capacity: u32,
-    ) -> Result<Address, Error> {
-        if amount <= 0 {
-            return Err(Error::InvalidStakeForPool);
-        }
-        if capacity < 2 || capacity > 1000 {
-            return Err(Error::InvalidInput);
-        }
-        let supported: bool = env
-            .storage()
-            .persistent()
-            .get(&DataKey::SupportedToken(currency))
-            .unwrap_or(false);
-        if !supported {
-            return Err(Error::UnsupportedToken);
-        }
-
-        // Dummy logic to return the factory address as the "pool" address since actual pool deployment isn't defined here.
-        Ok(env.current_contract_address())
     }
 
     // ── Upgrade mechanism ────────────────────────────────────────────────────

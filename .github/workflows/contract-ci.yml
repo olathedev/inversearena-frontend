@@ -19,8 +19,6 @@ jobs:
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
 
       - name: Add wasm32 target
         run: rustup target add wasm32-unknown-unknown
@@ -35,10 +33,6 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('contract/**/Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-
-      - name: Build contracts
-        working-directory: ./contract
-        run: cargo build --workspace
 
       - name: Run contract tests
         working-directory: ./contract
