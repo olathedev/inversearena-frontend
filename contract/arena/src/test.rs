@@ -198,6 +198,58 @@ fn submit_choice_rejects_late_submissions() {
 }
 
 #[test]
+fn submit_choice_rejects_round_mismatch() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let client = create_client(&env);
+    let player = Address::generate(&env);
+
+    set_ledger_sequence(&env, 320);
+    client.init(&5u32);
+    client.start_round();
+
+    let result = client.try_submit_choice(&player, &2u32, &Choice::Heads);
+
+    assert_eq!(result, Err(Ok(ArenaError::RoundMismatch)));
+    assert_eq!(client.get_choice(&1, &player), None);
+}
+
+#[test]
+fn submit_choice_stays_isolated_across_rounds() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let client = create_client(&env);
+    let player = Address::generate(&env);
+
+    set_ledger_sequence(&env, 700);
+    client.init(&2u32);
+    let first_round = client.start_round();
+    assert_eq!(first_round.round_number, 1);
+
+    set_ledger_sequence(&env, 701);
+    client.submit_choice(&player, &1u32, &Choice::Heads);
+    assert_eq!(client.get_choice(&1, &player), Some(Choice::Heads));
+
+    set_ledger_sequence(&env, 703);
+    client.timeout_round();
+
+    set_ledger_sequence(&env, 704);
+    let second_round = client.start_round();
+    assert_eq!(second_round.round_number, 2);
+
+    let stale = client.try_submit_choice(&player, &1u32, &Choice::Tails);
+    assert_eq!(stale, Err(Ok(ArenaError::RoundMismatch)));
+    assert_eq!(client.get_choice(&1, &player), Some(Choice::Heads));
+    assert_eq!(client.get_choice(&2, &player), None);
+
+    client.submit_choice(&player, &2u32, &Choice::Tails);
+    assert_eq!(client.get_choice(&1, &player), Some(Choice::Heads));
+    assert_eq!(client.get_choice(&2, &player), Some(Choice::Tails));
+}
+
+#[test]
 fn timeout_round_is_callable_by_anyone_after_deadline() {
     let env = Env::default();
     let client = create_client(&env);

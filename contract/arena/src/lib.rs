@@ -562,7 +562,7 @@ impl ArenaContract {
         }
 
         if round_number != round.round_number {
-            return Err(ArenaError::RoundDeadlineOverflow);
+            return Err(ArenaError::RoundMismatch);
         }
 
         let current_ledger = env.ledger().sequence();
