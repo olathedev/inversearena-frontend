@@ -78,10 +78,7 @@ impl StakingContract {
             return Err(StakingError::ZeroShareMint);
         }
 
-        let contract_address = env.current_contract_address();
-        let token_client = token::TokenClient::new(&env, &token_contract);
-        token_client.transfer(&staker, &contract_address, &amount);
-
+        // EFFECTS: update storage before any external call
         let position_key = DataKey::Position(staker.clone());
         let existing_position =
             env.storage()
@@ -106,6 +103,11 @@ impl StakingContract {
         env.storage()
             .instance()
             .set(&TOTAL_SHARES_KEY, &(total_shares + minted_shares));
+
+        // INTERACTION: external call last
+        let contract_address = env.current_contract_address();
+        let token_client = token::TokenClient::new(&env, &token_contract);
+        token_client.transfer(&staker, &contract_address, &amount);
 
         env.events().publish(
             (TOPIC_STAKED, staker, token_contract),

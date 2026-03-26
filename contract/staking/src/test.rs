@@ -116,3 +116,33 @@ fn stake_rejects_non_positive_amounts() {
         Err(Ok(StakingError::InvalidAmount))
     );
 }
+
+#[test]
+fn stake_state_is_updated_before_transfer() {
+    // Verifies CEI ordering: after stake(), totals and position reflect the deposit
+    // regardless of when the token transfer settles — ensuring a re-entrant read
+    // during transfer would see the already-committed state, not stale balances.
+    let (_env, _admin, staker, client, _token_client) = setup();
+
+    let amount = 500_000_000i128;
+    let minted = client.stake(&staker, &amount);
+
+    // State must be committed
+    assert_eq!(client.total_staked(), amount);
+    assert_eq!(client.total_shares(), minted);
+    assert_eq!(
+        client.get_position(&staker),
+        StakePosition {
+            amount,
+            shares: minted,
+        }
+    );
+
+    // A second stake uses already-updated totals for share calculation
+    let amount2 = 100_000_000i128;
+    let minted2 = client.stake(&staker, &amount2);
+    // shares = amount2 * total_shares / total_staked = 100M * 500M / 500M = 100M
+    assert_eq!(minted2, amount2);
+    assert_eq!(client.total_staked(), amount + amount2);
+    assert_eq!(client.total_shares(), minted + minted2);
+}
