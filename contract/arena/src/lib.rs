@@ -375,9 +375,6 @@ impl ArenaContract {
         if round.total_submissions >= bounds::MAX_SUBMISSIONS_PER_ROUND {
             return Err(ArenaError::MaxSubmissionsPerRound);
         }
-        if !player_can_submit(&env, &player) {
-            return Err(ArenaError::PlayerEliminated);
-        }
         storage(&env).set(&submission_key, &choice);
         bump(&env, &submission_key);
         round.total_submissions += 1;
@@ -454,7 +451,17 @@ impl ArenaContract {
     }
 
     pub fn get_arena_state(env: Env) -> Result<ArenaStateView, ArenaError> {
-        let round = get_round(&env)?;
+        let round = storage(&env)
+            .get::<_, RoundState>(&DataKey::Round)
+            .unwrap_or(RoundState {
+                round_number: 0,
+                round_start_ledger: 0,
+                round_deadline_ledger: 0,
+                active: false,
+                total_submissions: 0,
+                timed_out: false,
+                finished: false,
+            });
         let prize_pool: i128 = env.storage().instance().get(&PRIZE_POOL_KEY).unwrap_or(0);
         let max_capacity: u32 = env.storage().instance().get(&CAPACITY_KEY).unwrap_or(0);
         Ok(ArenaStateView {
@@ -585,11 +592,6 @@ fn bump(env: &Env, key: &DataKey) {
     env.storage()
         .persistent()
         .extend_ttl(key, GAME_TTL_THRESHOLD, GAME_TTL_EXTEND_TO);
-}
-
-/// Returns true if the player is still an active survivor (not eliminated).
-fn player_can_submit(env: &Env, player: &Address) -> bool {
-    storage(env).has(&DataKey::Survivor(player.clone()))
 }
 
 #[cfg(all(test, feature = "integration-tests"))]
