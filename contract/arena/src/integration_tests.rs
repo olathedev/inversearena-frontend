@@ -8,11 +8,14 @@
 
 extern crate std;
 
+use std::vec;
+
 use factory::{FactoryContract, FactoryContractClient};
 use payout::{PayoutContract, PayoutContractClient};
 use soroban_sdk::{
-    testutils::{Address as _, Ledger, LedgerInfo},
     Address, BytesN, Env,
+    testutils::{Address as _, Ledger, LedgerInfo},
+    token::StellarAssetClient,
 };
 
 use super::*;
@@ -60,16 +63,35 @@ fn deploy_all(
     (factory, payout)
 }
 
-fn deploy_arena(env: &Env, admin: &Address, round_speed: u32, token: &Address) -> ArenaContractClient<'static> {
+fn deploy_arena(
+    env: &Env,
+    admin: &Address,
+    round_speed: u32,
+    token: &Address,
+) -> ArenaContractClient<'static> {
     let env_s: &'static Env = unsafe { &*(env as *const Env) };
     let arena_id = env.register(ArenaContract, ());
     let arena = ArenaContractClient::new(env_s, &arena_id);
 
     arena.init(&round_speed);
     arena.initialize(admin);
-    let _ = token;
+    arena.set_token(token);
 
     arena
+}
+
+fn join_players(
+    env: &Env,
+    arena: &ArenaContractClient<'_>,
+    token: &StellarAssetClient<'_>,
+    players: &[Address],
+    stake: i128,
+) {
+    env.mock_all_auths();
+    for player in players {
+        token.mint(player, &(stake * 10));
+        arena.join(player, &stake);
+    }
 }
 
 // ── AC: Full lifecycle runs without error ─────────────────────────────────────
@@ -85,9 +107,13 @@ fn lifecycle_full_game_three_rounds_eight_players() {
     let admin = Address::generate(&env);
     let (_factory, payout) = deploy_all(&env, &admin);
 
-    let xlm_address = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let xlm_address = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
+    let token = StellarAssetClient::new(&env, &xlm_address);
     let round_speed = 10u32;
-    let capacity = 8u32;
+    let _capacity = 8u32;
     let stake = 10_000_000i128;
 
     let arena = deploy_arena(&env, &admin, round_speed, &xlm_address);
@@ -95,6 +121,7 @@ fn lifecycle_full_game_three_rounds_eight_players() {
     // ── Step 2: Rounds ────────────────────────────────────────────────────────
     // Generate 8 players.
     let players: std::vec::Vec<Address> = (0..8).map(|_| Address::generate(&env)).collect();
+    join_players(&env, &arena, &token, &players, stake);
 
     // ── Step 3: Round 1 — all 8 players submit ────────────────────────────────
     set_seq(&env, 1_010);
@@ -103,7 +130,11 @@ fn lifecycle_full_game_three_rounds_eight_players() {
 
     set_seq(&env, 1_015);
     for (i, p) in players.iter().enumerate() {
-        let choice = if i % 2 == 0 { Choice::Heads } else { Choice::Tails };
+        let choice = if i % 2 == 0 {
+            Choice::Heads
+        } else {
+            Choice::Tails
+        };
         arena.submit_choice(p, &r1.round_number, &choice);
     }
 
@@ -115,9 +146,15 @@ fn lifecycle_full_game_three_rounds_eight_players() {
     // ── Step 6: Payout — distribute winnings using the payout contract ───────
     let winner = players[0].clone();
     let prize_amount = 80_000_000i128;
+    token.mint(&payout.address, &prize_amount);
 
     payout.set_treasury(&admin); // Dust goes to admin for this test
-    payout.distribute_prize(&prize_amount, &soroban_sdk::vec![&env, winner.clone()], &xlm_address);
+    payout.distribute_prize(
+        &1u32,
+        &prize_amount,
+        &soroban_sdk::vec![&env, winner.clone()],
+        &xlm_address,
+    );
 }
 
 #[test]
@@ -126,13 +163,18 @@ fn test_double_claim_prevention() {
     env.mock_all_auths();
     let admin = Address::generate(&env);
     let (_factory, _) = deploy_all(&env, &admin);
-    
-    let xlm_address = Address::generate(&env);
-    let arena = deploy_arena(&env, &admin, 10u32, &xlm_address);
+
+    let token_admin = Address::generate(&env);
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
+    let token = StellarAssetClient::new(&env, &token_id);
+    let arena = deploy_arena(&env, &admin, 10u32, &token_id);
 
     let player = Address::generate(&env);
     let stake = 1000i128;
     let yield_comp = 10i128;
+    token.mint(&arena.address, &(stake + yield_comp));
 
     // Set player as winner
     env.mock_all_auths();
@@ -141,10 +183,9 @@ fn test_double_claim_prevention() {
     // First claim succeeds
     arena.claim(&player);
 
-    // Second claim currently fails with NoPrizeToClaim because the pool is
-    // depleted after the first successful claim.
+    // Second claim must fail with AlreadyClaimed even though the pool is empty.
     let result = arena.try_claim(&player);
-    assert_eq!(result, Err(Ok(ArenaError::NoPrizeToClaim)));
+    assert_eq!(result, Err(Ok(ArenaError::AlreadyClaimed)));
 }
 
 #[test]
@@ -158,11 +199,21 @@ fn test_payout_rounding_and_dust() {
     payout.set_treasury(&treasury);
 
     let total_prize = 100i128;
-    let currency = Address::generate(&env);
-    let winners = soroban_sdk::vec![&env, Address::generate(&env), Address::generate(&env), Address::generate(&env)]; // 3 winners
+    let token_admin = Address::generate(&env);
+    let currency = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
+    let token = StellarAssetClient::new(&env, &currency);
+    token.mint(&payout.address, &total_prize);
+    let winners = soroban_sdk::vec![
+        &env,
+        Address::generate(&env),
+        Address::generate(&env),
+        Address::generate(&env)
+    ]; // 3 winners
 
     // 100 / 3 = 33 share, 1 dust
-    payout.distribute_prize(&total_prize, &winners, &currency);
+    payout.distribute_prize(&1u32, &total_prize, &winners, &currency);
 
     // Verification of events (dust emitted) or state if tracked.
     // For this test, we just ensure it doesn't panic and logic is exercised.
@@ -174,8 +225,14 @@ fn test_emergency_pause_and_resume() {
     env.mock_all_auths();
     let admin = Address::generate(&env);
     let (_factory, _) = deploy_all(&env, &admin);
-    let xlm_address = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let xlm_address = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
+    let token = StellarAssetClient::new(&env, &xlm_address);
     let arena = deploy_arena(&env, &admin, 10u32, &xlm_address);
+    let players = vec![Address::generate(&env), Address::generate(&env)];
+    join_players(&env, &arena, &token, &players, 100i128);
 
     // Pause
     arena.pause();
@@ -199,12 +256,12 @@ fn test_upgrade_cancellation() {
     env.mock_all_auths();
     let admin = Address::generate(&env);
     let (_factory, _) = deploy_all(&env, &admin);
-    
+
     let xlm_address = Address::generate(&env);
     let arena = deploy_arena(&env, &admin, 10u32, &xlm_address);
 
     let new_wasm = dummy_wasm_hash(&env);
-    
+
     // Propose
     arena.propose_upgrade(&new_wasm);
     assert!(arena.pending_upgrade().is_some());

@@ -18,13 +18,18 @@ pub fn check_round_flags(round: &RoundState) -> Result<(), &'static str> {
 /// Round numbers are strictly positive once a round has been started (`start_round` increments from 0).
 pub fn check_round_number_monotonic(prev: u32, next: u32) -> Result<(), &'static str> {
     if next != prev && next != prev + 1 {
-        return Err("invariant: round_number may only stay the same or increase by 1 per transition");
+        return Err(
+            "invariant: round_number may only stay the same or increase by 1 per transition",
+        );
     }
     Ok(())
 }
 
 /// After `timeout_round`, the round is inactive and marked timed out.
-pub fn check_timeout_transition(before: &RoundState, after: &RoundState) -> Result<(), &'static str> {
+pub fn check_timeout_transition(
+    before: &RoundState,
+    after: &RoundState,
+) -> Result<(), &'static str> {
     if before.round_number != after.round_number {
         return Err("invariant: timeout must not change round_number");
     }

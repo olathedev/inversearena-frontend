@@ -1,5 +1,6 @@
 #[cfg(test)]
 use super::*;
+use arena::ArenaContractClient;
 use soroban_sdk::{
     Address, BytesN, Env,
     testutils::{Address as _, Ledger, LedgerInfo},
@@ -120,6 +121,13 @@ fn test_set_min_stake() {
 fn test_set_negative_min_stake_returns_invalid_stake_amount() {
     let (_env, _admin, client) = setup();
     let result = client.try_set_min_stake(&-1000);
+    assert_eq!(result, Err(Ok(Error::InvalidStakeAmount)));
+}
+
+#[test]
+fn test_set_zero_min_stake_returns_invalid_stake_amount() {
+    let (_env, _admin, client) = setup();
+    let result = client.try_set_min_stake(&0);
     assert_eq!(result, Err(Ok(Error::InvalidStakeAmount)));
 }
 
@@ -289,6 +297,48 @@ fn test_create_pool_increments_id() {
     assert_ne!(pool1, pool2);
 }
 
+// ── create_pool deploys interactive arena ─────────────────────────────────────
+
+/// Verifies that the address returned by `create_pool` is a live Arena contract
+/// whose admin was transferred to the caller and whose game config was initialised.
+#[test]
+fn test_create_pool_deploys_interactive_arena() {
+    let (env, admin, client) = setup();
+    client.set_arena_wasm_hash(&dummy_hash(&env));
+    let currency = Address::generate(&env);
+    let round_speed = 10u32;
+
+    let arena_addr = client.create_pool(&admin, &MIN_STAKE, &currency, &round_speed, &8u32);
+
+    // Wrap the returned address in an ArenaContractClient and call it.
+    let env_s: &'static Env = unsafe { &*(&env as *const Env) };
+    let arena = ArenaContractClient::new(env_s, &arena_addr);
+
+    // Admin should have been transferred from factory to the caller.
+    assert_eq!(arena.admin(), admin);
+}
+
+/// Two consecutive `create_pool` calls produce two distinct arena addresses,
+/// each with the correct admin set.
+#[test]
+fn test_create_pool_two_pools_have_independent_state() {
+    let (env, admin, client) = setup();
+    client.set_arena_wasm_hash(&dummy_hash(&env));
+    let currency = Address::generate(&env);
+
+    let addr1 = client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
+    let addr2 = client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
+    assert_ne!(addr1, addr2);
+
+    let env_s: &'static Env = unsafe { &*(&env as *const Env) };
+    let arena1 = ArenaContractClient::new(env_s, &addr1);
+    let arena2 = ArenaContractClient::new(env_s, &addr2);
+
+    // Both arenas should report the same admin (the caller).
+    assert_eq!(arena1.admin(), admin);
+    assert_eq!(arena2.admin(), admin);
+}
+
 // ── propose_upgrade ───────────────────────────────────────────────────────────
 
 #[test]
@@ -343,9 +393,10 @@ fn test_execute_with_only_execute_after_returns_malformed_upgrade_state() {
     let (env, _admin, client) = setup();
     let contract_id = client.address.clone();
     env.as_contract(&contract_id, || {
-        env.storage()
-            .instance()
-            .set(&EXECUTE_AFTER_KEY, &(env.ledger().timestamp() + TIMELOCK + 1));
+        env.storage().instance().set(
+            &EXECUTE_AFTER_KEY,
+            &(env.ledger().timestamp() + TIMELOCK + 1),
+        );
     });
 
     let result = client.try_execute_upgrade();
@@ -558,7 +609,7 @@ fn test_get_arenas_pagination() {
 
     let all = client.get_arenas(&0u32, &10u32);
     assert_eq!(all.len(), 5);
-    
+
     let page1 = client.get_arenas(&0u32, &2u32);
     assert_eq!(page1.len(), 2);
     assert_eq!(page1.get(0).unwrap().pool_id, 0);

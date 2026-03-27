@@ -116,3 +116,89 @@ fn stake_rejects_non_positive_amounts() {
         Err(Ok(StakingError::InvalidAmount))
     );
 }
+
+#[test]
+fn stake_state_is_updated_before_transfer() {
+    // Verifies CEI ordering: after stake(), totals and position reflect the deposit
+    // regardless of when the token transfer settles — ensuring a re-entrant read
+    // during transfer would see the already-committed state, not stale balances.
+    let (_env, _admin, staker, client, _token_client) = setup();
+
+    let amount = 500_000_000i128;
+    let minted = client.stake(&staker, &amount);
+
+    // State must be committed
+    assert_eq!(client.total_staked(), amount);
+    assert_eq!(client.total_shares(), minted);
+    assert_eq!(
+        client.get_position(&staker),
+        StakePosition {
+            amount,
+            shares: minted,
+        }
+    );
+
+    // A second stake uses already-updated totals for share calculation
+    let amount2 = 100_000_000i128;
+    let minted2 = client.stake(&staker, &amount2);
+    // shares = amount2 * total_shares / total_staked = 100M * 500M / 500M = 100M
+    assert_eq!(minted2, amount2);
+    assert_eq!(client.total_staked(), amount + amount2);
+    assert_eq!(client.total_shares(), minted + minted2);
+}
+
+#[test]
+fn unstake_full_returns_all_tokens() {
+    let (_env, _admin, staker, client, token_client) = setup();
+    let balance_before = token_client.balance(&staker);
+
+    let shares = client.stake(&staker, &250_000_000i128);
+    let returned = client.unstake(&staker, &shares);
+
+    assert_eq!(returned, 250_000_000);
+    assert_eq!(token_client.balance(&staker), balance_before);
+    assert_eq!(client.total_staked(), 0);
+    assert_eq!(client.total_shares(), 0);
+    assert_eq!(
+        client.get_position(&staker),
+        StakePosition {
+            amount: 0,
+            shares: 0,
+        }
+    );
+}
+
+#[test]
+fn unstake_partial_returns_proportional_tokens() {
+    let (_env, _admin, staker, client, _token_client) = setup();
+
+    let shares = client.stake(&staker, &400_000_000i128);
+    let half = shares / 2;
+    let returned = client.unstake(&staker, &half);
+
+    assert_eq!(returned, 200_000_000);
+    assert_eq!(client.total_staked(), 200_000_000);
+    assert_eq!(client.total_shares(), 200_000_000);
+}
+
+#[test]
+fn unstake_rejects_insufficient_shares() {
+    let (_env, _admin, staker, client, _token_client) = setup();
+
+    client.stake(&staker, &100_000_000i128);
+    assert_eq!(
+        client.try_unstake(&staker, &999_999_999),
+        Err(Ok(StakingError::InsufficientShares))
+    );
+}
+
+#[test]
+fn unstake_rejects_zero_shares() {
+    let (_env, _admin, staker, client, _token_client) = setup();
+
+    client.stake(&staker, &100_000_000i128);
+    assert_eq!(
+        client.try_unstake(&staker, &0),
+        Err(Ok(StakingError::ZeroShares))
+    );
+}

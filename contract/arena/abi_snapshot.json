@@ -21,7 +21,10 @@
     "NotASurvivor": 17,
     "GameAlreadyFinished": 18,
     "TokenNotSet": 19,
-    "MaxSubmissionsPerRound": 20
+    "MaxSubmissionsPerRound": 20,
+    "PlayerEliminated": 21,
+    "WrongRoundNumber": 22,
+    "NotEnoughPlayers": 23
   },
   "event_topics": [
     "UP_PROP",
@@ -29,9 +32,9 @@
     "UP_CANC",
     "PAUSED",
     "UNPAUSED",
-    "G_END",
     "R_START",
     "R_TOUT",
+    "RSLVD",
     "WIN_SET",
     "CLAIM"
   ],
@@ -52,6 +55,7 @@
     "start_round",
     "submit_choice",
     "timeout_round",
+    "resolve_round",
     "get_config",
     "get_round",
     "get_choice",

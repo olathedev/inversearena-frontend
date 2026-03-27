@@ -19,7 +19,10 @@ fn arena_error_codes_match_abi_snapshot() {
         ("RoundAlreadyActive", ArenaError::RoundAlreadyActive),
         ("NoActiveRound", ArenaError::NoActiveRound),
         ("SubmissionWindowClosed", ArenaError::SubmissionWindowClosed),
-        ("SubmissionAlreadyExists", ArenaError::SubmissionAlreadyExists),
+        (
+            "SubmissionAlreadyExists",
+            ArenaError::SubmissionAlreadyExists,
+        ),
         ("RoundStillOpen", ArenaError::RoundStillOpen),
         ("RoundDeadlineOverflow", ArenaError::RoundDeadlineOverflow),
         ("NotInitialized", ArenaError::NotInitialized),
@@ -34,6 +37,9 @@ fn arena_error_codes_match_abi_snapshot() {
         ("GameAlreadyFinished", ArenaError::GameAlreadyFinished),
         ("TokenNotSet", ArenaError::TokenNotSet),
         ("MaxSubmissionsPerRound", ArenaError::MaxSubmissionsPerRound),
+        ("PlayerEliminated", ArenaError::PlayerEliminated),
+        ("WrongRoundNumber", ArenaError::WrongRoundNumber),
+        ("NotEnoughPlayers", ArenaError::NotEnoughPlayers),
     ];
 
     assert_eq!(
@@ -47,7 +53,8 @@ fn arena_error_codes_match_abi_snapshot() {
             .get(*name)
             .unwrap_or_else(|| panic!("missing arena_error key {name}"))
             .as_u64()
-            .unwrap_or_else(|| panic!("arena_error[{name}] must be a u64")) as u32;
+            .unwrap_or_else(|| panic!("arena_error[{name}] must be a u64"))
+            as u32;
         assert_eq!(code, *expected as u32, "mismatch for {name}");
     }
 }
@@ -80,6 +87,7 @@ fn exported_functions_match_abi_snapshot() {
         "start_round",
         "submit_choice",
         "timeout_round",
+        "resolve_round",
         "get_config",
         "get_round",
         "get_choice",
@@ -89,7 +97,10 @@ fn exported_functions_match_abi_snapshot() {
         "pending_upgrade",
     ];
 
-    assert_eq!(names, expected, "exported_functions snapshot drift — bump schema_version if intentional");
+    assert_eq!(
+        names, expected,
+        "exported_functions snapshot drift — bump schema_version if intentional"
+    );
 }
 
 #[test]
@@ -104,17 +115,12 @@ fn event_topics_match_abi_snapshot() {
         .collect();
 
     let expected: &[&str] = &[
-        "UP_PROP",
-        "UP_EXEC",
-        "UP_CANC",
-        "PAUSED",
-        "UNPAUSED",
-        "G_END",
-        "R_START",
-        "R_TOUT",
-        "WIN_SET",
-        "CLAIM",
+        "UP_PROP", "UP_EXEC", "UP_CANC", "PAUSED", "UNPAUSED", "R_START", "R_TOUT", "RSLVD",
+        "WIN_SET", "CLAIM",
     ];
 
-    assert_eq!(names, expected, "event_topics snapshot drift — bump schema_version if intentional");
+    assert_eq!(
+        names, expected,
+        "event_topics snapshot drift — bump schema_version if intentional"
+    );
 }
