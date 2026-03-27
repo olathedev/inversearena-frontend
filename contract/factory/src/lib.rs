@@ -98,6 +98,8 @@ pub enum Error {
     WasmHashNotSet = 11,
     /// Pending upgrade state is only partially present.
     MalformedUpgradeState = 12,
+    /// `create_pool` called with a token that has not been added via `add_supported_token`.
+    UnsupportedToken = 13,
 }
 
 // ── Contract ──────────────────────────────────────────────────────────────────
@@ -312,6 +314,10 @@ impl FactoryContract {
             return Err(Error::Unauthorized);
         }
 
+        if !Self::is_token_supported(env.clone(), currency.clone()) {
+            return Err(Error::UnsupportedToken);
+        }
+
         if capacity == 0 || capacity > MAX_POOL_CAPACITY {
             return Err(Error::InvalidCapacity);
         }
@@ -420,16 +426,30 @@ impl FactoryContract {
 
         Ok(arena_address)
     }
-    pub fn add_supported_token(env: Env, token: Address) {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&ADMIN_KEY)
-            .expect("not initialized");
-        admin.require_auth();
+    /// Add a token to the supported currency list. Admin-only.
+    pub fn add_supported_token(env: Env, token: Address) -> Result<(), Error> {
+        require_admin(&env)?;
         env.storage()
-            .persistent()
+            .instance()
             .set(&DataKey::SupportedToken(token), &true);
+        Ok(())
+    }
+
+    /// Remove a token from the supported currency list. Admin-only.
+    pub fn remove_supported_token(env: Env, token: Address) -> Result<(), Error> {
+        require_admin(&env)?;
+        env.storage()
+            .instance()
+            .remove(&DataKey::SupportedToken(token));
+        Ok(())
+    }
+
+    /// Return whether `token` is on the supported currency list.
+    pub fn is_token_supported(env: Env, token: Address) -> bool {
+        env.storage()
+            .instance()
+            .get::<_, bool>(&DataKey::SupportedToken(token))
+            .unwrap_or(false)
     }
 
     // ── Upgrade mechanism ────────────────────────────────────────────────────

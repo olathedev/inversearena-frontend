@@ -56,6 +56,13 @@ fn dummy_hash(env: &Env) -> BytesN<32> {
     BytesN::from_array(env, &[2u8; 32])
 }
 
+/// Generate a fresh address and register it as a supported token.
+fn supported_currency(env: &Env, client: &FactoryContractClient<'static>) -> Address {
+    let currency = Address::generate(env);
+    client.add_supported_token(&currency);
+    currency
+}
+
 // ── initialize ────────────────────────────────────────────────────────────────
 
 #[test]
@@ -140,7 +147,7 @@ fn test_admin_can_create_pool() {
     let wasm_hash = dummy_hash(&env);
     client.set_arena_wasm_hash(&wasm_hash);
     let stake = MIN_STAKE + 1_000_000;
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     client.create_pool(&admin, &stake, &currency, &10u32, &8u32);
 }
 
@@ -153,7 +160,7 @@ fn test_whitelisted_host_can_create_pool() {
     let wasm_hash = dummy_hash(&env);
     client.set_arena_wasm_hash(&wasm_hash);
     let stake = MIN_STAKE + 1_000_000;
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     client.create_pool(&host, &stake, &currency, &10u32, &8u32);
 }
 
@@ -194,6 +201,7 @@ fn test_create_pool_allows_whitelisted_host_in_mock_auth_env() {
 
     let stake = MIN_STAKE + 1_000_000;
     let currency = Address::generate(&env);
+    client.add_supported_token(&currency);
     let result = client.try_create_pool(&host, &stake, &currency, &10u32, &8u32);
 
     assert!(result.is_ok());
@@ -206,7 +214,7 @@ fn test_create_pool_with_stake_equal_to_minimum_succeeds() {
     let (env, admin, client) = setup();
     let wasm_hash = dummy_hash(&env);
     client.set_arena_wasm_hash(&wasm_hash);
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
 }
 
@@ -216,7 +224,7 @@ fn test_create_pool_with_stake_below_minimum_returns_stake_below_minimum() {
     let wasm_hash = dummy_hash(&env);
     client.set_arena_wasm_hash(&wasm_hash);
     let stake = MIN_STAKE - 1;
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     let result = client.try_create_pool(&admin, &stake, &currency, &10u32, &8u32);
     assert_eq!(result, Err(Ok(Error::StakeBelowMinimum)));
 }
@@ -226,7 +234,7 @@ fn test_create_pool_with_zero_stake_returns_invalid_stake_amount() {
     let (env, admin, client) = setup();
     let wasm_hash = dummy_hash(&env);
     client.set_arena_wasm_hash(&wasm_hash);
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     let result = client.try_create_pool(&admin, &0, &currency, &10u32, &8u32);
     assert_eq!(result, Err(Ok(Error::InvalidStakeAmount)));
 }
@@ -236,7 +244,7 @@ fn test_create_pool_with_negative_stake_returns_invalid_stake_amount() {
     let (env, admin, client) = setup();
     let wasm_hash = dummy_hash(&env);
     client.set_arena_wasm_hash(&wasm_hash);
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     let result = client.try_create_pool(&admin, &-1000, &currency, &10u32, &8u32);
     assert_eq!(result, Err(Ok(Error::InvalidStakeAmount)));
 }
@@ -245,7 +253,7 @@ fn test_create_pool_with_negative_stake_returns_invalid_stake_amount() {
 fn test_create_pool_without_wasm_hash_returns_wasm_hash_not_set() {
     let (env, admin, client) = setup();
     let stake = MIN_STAKE + 1_000_000;
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     let result = client.try_create_pool(&admin, &stake, &currency, &10u32, &8u32);
     assert_eq!(result, Err(Ok(Error::WasmHashNotSet)));
 }
@@ -256,7 +264,7 @@ fn test_create_pool_without_wasm_hash_returns_wasm_hash_not_set() {
 fn test_create_pool_with_capacity_one_succeeds() {
     let (env, admin, client) = setup();
     client.set_arena_wasm_hash(&dummy_hash(&env));
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &1u32);
 }
 
@@ -264,7 +272,7 @@ fn test_create_pool_with_capacity_one_succeeds() {
 fn test_create_pool_with_max_capacity_succeeds() {
     let (env, admin, client) = setup();
     client.set_arena_wasm_hash(&dummy_hash(&env));
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &MAX_CAPACITY);
 }
 
@@ -272,7 +280,7 @@ fn test_create_pool_with_max_capacity_succeeds() {
 fn test_create_pool_with_zero_capacity_returns_invalid_capacity() {
     let (env, admin, client) = setup();
     client.set_arena_wasm_hash(&dummy_hash(&env));
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     let result = client.try_create_pool(&admin, &MIN_STAKE, &currency, &10u32, &0u32);
     assert_eq!(result, Err(Ok(Error::InvalidCapacity)));
 }
@@ -281,7 +289,7 @@ fn test_create_pool_with_zero_capacity_returns_invalid_capacity() {
 fn test_create_pool_exceeding_max_capacity_returns_invalid_capacity() {
     let (env, admin, client) = setup();
     client.set_arena_wasm_hash(&dummy_hash(&env));
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     let result = client.try_create_pool(&admin, &MIN_STAKE, &currency, &10u32, &(MAX_CAPACITY + 1));
     assert_eq!(result, Err(Ok(Error::InvalidCapacity)));
 }
@@ -292,7 +300,7 @@ fn test_create_pool_exceeding_max_capacity_returns_invalid_capacity() {
 fn test_create_pool_increments_id() {
     let (env, admin, client) = setup();
     client.set_arena_wasm_hash(&dummy_hash(&env));
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     let pool1 = client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
     let pool2 = client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
     assert_ne!(pool1, pool2);
@@ -306,7 +314,7 @@ fn test_create_pool_increments_id() {
 fn test_create_pool_deploys_interactive_arena() {
     let (env, admin, client) = setup();
     client.set_arena_wasm_hash(&dummy_hash(&env));
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     let round_speed = 10u32;
 
     let arena_addr = client.create_pool(&admin, &MIN_STAKE, &currency, &round_speed, &8u32);
@@ -329,6 +337,7 @@ fn create_pool_arena_is_immediately_joinable() {
         .register_stellar_asset_contract_v2(token_admin.clone())
         .address();
     let token = StellarAssetClient::new(&env, &currency);
+    client.add_supported_token(&currency);
 
     let arena_addr = client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
 
@@ -348,7 +357,7 @@ fn create_pool_arena_is_immediately_joinable() {
 fn test_create_pool_two_pools_have_independent_state() {
     let (env, admin, client) = setup();
     client.set_arena_wasm_hash(&dummy_hash(&env));
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
 
     let addr1 = client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
     let addr2 = client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
@@ -611,7 +620,7 @@ fn test_unauthorized_cancel_upgrade_panics() {
 fn test_get_arena() {
     let (env, admin, client) = setup();
     client.set_arena_wasm_hash(&dummy_hash(&env));
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
     client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &10u32);
 
     let arena = client.get_arena(&0u32).unwrap();
@@ -625,7 +634,7 @@ fn test_get_arena() {
 fn test_get_arenas_pagination() {
     let (env, admin, client) = setup();
     client.set_arena_wasm_hash(&dummy_hash(&env));
-    let currency = Address::generate(&env);
+    let currency = supported_currency(&env, &client);
 
     for _ in 0..5 {
         client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &10u32);
@@ -718,4 +727,53 @@ fn test_migrate_from_v0() {
 
     client.migrate();
     assert_eq!(client.schema_version(), 1);
+}
+
+// ── supported token tests ─────────────────────────────────────────────────────
+
+#[test]
+fn test_add_supported_token_makes_token_supported() {
+    let (env, _admin, client) = setup();
+    let token = Address::generate(&env);
+    assert!(!client.is_token_supported(&token));
+    client.add_supported_token(&token);
+    assert!(client.is_token_supported(&token));
+}
+
+#[test]
+fn test_remove_supported_token_makes_token_unsupported() {
+    let (env, _admin, client) = setup();
+    let token = Address::generate(&env);
+    client.add_supported_token(&token);
+    assert!(client.is_token_supported(&token));
+    client.remove_supported_token(&token);
+    assert!(!client.is_token_supported(&token));
+}
+
+#[test]
+fn test_create_pool_rejects_unsupported_token() {
+    let (env, admin, client) = setup();
+    client.set_arena_wasm_hash(&dummy_hash(&env));
+    let currency = Address::generate(&env); // not added via add_supported_token
+    let result = client.try_create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
+    assert_eq!(result, Err(Ok(Error::UnsupportedToken)));
+}
+
+#[test]
+fn test_create_pool_succeeds_after_token_added() {
+    let (env, admin, client) = setup();
+    client.set_arena_wasm_hash(&dummy_hash(&env));
+    let currency = supported_currency(&env, &client);
+    client.create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
+}
+
+#[test]
+fn test_create_pool_fails_after_token_removed() {
+    let (env, admin, client) = setup();
+    client.set_arena_wasm_hash(&dummy_hash(&env));
+    let currency = Address::generate(&env);
+    client.add_supported_token(&currency);
+    client.remove_supported_token(&currency);
+    let result = client.try_create_pool(&admin, &MIN_STAKE, &currency, &10u32, &8u32);
+    assert_eq!(result, Err(Ok(Error::UnsupportedToken)));
 }
