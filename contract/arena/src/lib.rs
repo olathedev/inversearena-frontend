@@ -307,6 +307,9 @@ impl ArenaContract {
         require_not_paused(&env)?;
         let admin = Self::admin(env.clone());
         admin.require_auth();
+        if !storage(&env).has(&DataKey::Survivor(player.clone())) {
+            return Err(ArenaError::NotASurvivor);
+        }
         if env
             .storage()
             .instance()

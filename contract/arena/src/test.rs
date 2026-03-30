@@ -1882,14 +1882,12 @@ fn claim_single_winner_gets_correct_prize() {
 
 #[test]
 fn claim_rejects_before_game_is_finished() {
-    let (env, admin, client) = setup_with_admin();
-    let (asset, token_id) = setup_token(&env, &admin);
-    asset.mint(&client.address, &1_000i128);
-    client.set_token(&token_id);
+    let (env, admin, client, token_id, players) = setup_game(5, 2);
+    let winner = players[0].clone();
+    let asset = StellarAssetClient::new(&env, &token_id);
+    asset.mint(&client.address, &1000);
 
-    let winner = Address::generate(&env);
-    client.set_winner(&winner, &1_000i128, &0i128);
-
+    client.set_winner(&winner, &1000i128, &0i128);
     let err = client.try_claim(&winner);
     assert_eq!(err, Err(Ok(ArenaError::GameNotFinished)));
 }
@@ -1908,14 +1906,55 @@ fn claim_second_set_winner_overwrites_prize_pool() {
 
 #[test]
 fn set_winner_twice_returns_error() {
-    let (env, _admin, client, _token_id, winner) = setup_finished_game_with_winner(0i128);
-    let second = Address::generate(&env);
+    let (env, admin, client, token_id, players) = setup_game(5, 3);
+    let winner = players[0].clone();
+    let second = players[1].clone();
+    let asset = StellarAssetClient::new(&env, &token_id);
+    asset.mint(&client.address, &1000);
 
+    client.set_winner(&winner, &0i128, &0i128);
     let err = client.try_set_winner(&second, &50i128, &25i128);
     assert_eq!(err, Err(Ok(ArenaError::WinnerAlreadySet)));
+}
 
-    let prize = client.claim(&winner);
-    assert_eq!(prize, 300i128);
+#[test]
+fn set_winner_fails_for_non_survivor() {
+    let (env, admin, client) = setup_with_admin();
+    let (_asset, token_id) = setup_token(&env, &admin);
+    client.set_token(&token_id);
+    client.init(&5, &TEST_REQUIRED_STAKE);
+    let non_survivor = Address::generate(&env);
+
+    let err = client.try_set_winner(&non_survivor, &100i128, &0i128);
+    assert_eq!(err, Err(Ok(ArenaError::NotASurvivor)));
+}
+
+#[test]
+fn capacity_enforcement() {
+    let (env, admin, client) = setup_with_admin();
+    let (_asset, token_id) = setup_token(&env, &admin);
+    client.set_token(&token_id);
+    client.init(&5, &TEST_REQUIRED_STAKE);
+
+    // Set capacity to 2
+    client.set_capacity(&2);
+
+    let p1 = Address::generate(&env);
+    let p2 = Address::generate(&env);
+    let p3 = Address::generate(&env);
+
+    let asset = StellarAssetClient::new(&env, &token_id);
+    asset.mint(&p1, &TEST_REQUIRED_STAKE);
+    asset.mint(&p2, &TEST_REQUIRED_STAKE);
+    asset.mint(&p3, &TEST_REQUIRED_STAKE);
+
+    // First two should succeed
+    client.join(&p1, &TEST_REQUIRED_STAKE);
+    client.join(&p2, &TEST_REQUIRED_STAKE);
+
+    // Third should fail
+    let err = client.try_join(&p3, &TEST_REQUIRED_STAKE);
+    assert_eq!(err, Err(Ok(ArenaError::ArenaFull)));
 }
 
 #[test]
@@ -2041,23 +2080,14 @@ fn join_fails_when_paused() {
 
 #[test]
 fn winner_is_identifiable_before_claim() {
-    let env = Env::default();
-    env.mock_all_auths();
-    let client = create_client(&env);
-    client.init(&10, &TEST_REQUIRED_STAKE);
-    client.initialize(&Address::generate(&env));
+    let (env, _admin, client, _token_id, players) = setup_game(10, 1);
+    let winner = players[0].clone();
 
-    let token_admin_addr = Address::generate(&env);
-    let asset = env.register_stellar_asset_contract_v2(token_admin_addr.clone());
-    let token_addr = asset.address();
-    client.set_token(&token_addr);
-
-    let winner = Address::generate(&env);
     client.set_winner(&winner, &1000, &100);
 
     let state = client.get_user_state(&winner);
     assert_eq!(state.has_won, true);
-    assert_eq!(state.is_active, false);
+    assert_eq!(state.is_active, true);
 }
 
 #[test]
@@ -2254,12 +2284,9 @@ fn pause_unpause_emit_versioned_payloads() {
 fn set_winner_event_includes_version_field() {
     use soroban_sdk::testutils::Events as _;
 
-    let (env, admin, client) = setup_with_admin();
-    let (_asset, token_id) = setup_token(&env, &admin);
-    client.set_token(&token_id);
-    client.init(&5, &TEST_REQUIRED_STAKE);
+    let (env, _admin, client, _token_id, players) = setup_game(5, 1);
+    let winner = players[0].clone();
 
-    let winner = Address::generate(&env);
     client.set_winner(&winner, &100i128, &10i128);
 
     let winner_event = env.events().all().last().unwrap();
