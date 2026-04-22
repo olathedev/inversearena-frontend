@@ -128,7 +128,6 @@ impl PayoutContract {
     /// * `AlreadyPaid`        — the composite key was already processed.
     pub fn distribute_winnings(
         env: Env,
-        caller: Address,
         ctx: Symbol,
         pool_id: u32,
         round_id: u32,
@@ -142,14 +141,9 @@ impl PayoutContract {
             .get(&ADMIN_KEY)
             .expect("not initialized");
 
-        // Enforce admin authorization before using caller identity checks.
         admin.require_auth();
 
         require_not_paused(&env)?;
-
-        if caller != admin {
-            panic_with_error!(&env, PayoutError::UnauthorizedCaller);
-        }
 
         if amount <= 0 {
             panic_with_error!(&env, PayoutError::InvalidAmount);

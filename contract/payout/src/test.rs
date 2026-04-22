@@ -57,7 +57,7 @@ fn test_double_initialize_panics() {
 
 #[test]
 fn test_admin_can_distribute_winnings() {
-    let (env, admin, client) = setup();
+    let (env, _admin, client) = setup();
 
     let winner = Address::generate(&env);
     let ctx = symbol_short!("ARENA_1");
@@ -67,7 +67,7 @@ fn test_admin_can_distribute_winnings() {
     let currency = symbol_short!("XLM");
 
     assert!(!client.is_payout_processed(&ctx, &pool_id, &round_id, &winner));
-    client.distribute_winnings(&admin, &ctx, &pool_id, &round_id, &winner, &amount, &currency);
+    client.distribute_winnings(&ctx, &pool_id, &round_id, &winner, &amount, &currency);
     assert!(client.is_payout_processed(&ctx, &pool_id, &round_id, &winner));
 
     let payout = client
@@ -81,33 +81,38 @@ fn test_admin_can_distribute_winnings() {
 
 #[test]
 fn test_unauthorized_caller_cannot_distribute() {
-    let (env, _admin, client) = setup();
-    let unauthorized = Address::generate(&env);
+    // admin.require_auth() is the only gate — no caller param to spoof.
+    // Providing no mock auth means admin.require_auth() fails.
+    let env = Env::default();
+    let contract_id = env.register(PayoutContract, ());
+    let admin = Address::generate(&env);
+
+    // Initialize with mock_all_auths so initialize() succeeds.
+    env.mock_all_auths();
+    let client = PayoutContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    // Clear all mocked auths — now admin.require_auth() is unsatisfied.
+    env.mock_auths(&[]);
+
     let winner = Address::generate(&env);
     let ctx = symbol_short!("ARENA_1");
     let currency = symbol_short!("XLM");
 
     let result = client.try_distribute_winnings(
-        &unauthorized,
-        &ctx,
-        &1u32,
-        &1u32,
-        &winner,
-        &1000i128,
-        &currency,
+        &ctx, &1u32, &1u32, &winner, &1000i128, &currency,
     );
-    assert_eq!(result, Err(Ok(PayoutError::UnauthorizedCaller)));
+    assert!(result.is_err(), "non-admin signer must be rejected by admin.require_auth()");
 }
 
 #[test]
 fn test_zero_amount_returns_error() {
-    let (env, admin, client) = setup();
+    let (env, _admin, client) = setup();
     let winner = Address::generate(&env);
     let ctx = symbol_short!("ARENA_1");
     let currency = symbol_short!("XLM");
 
     let result = client.try_distribute_winnings(
-        &admin,
         &ctx,
         &1u32,
         &1u32,
@@ -120,13 +125,12 @@ fn test_zero_amount_returns_error() {
 
 #[test]
 fn test_negative_amount_returns_error() {
-    let (env, admin, client) = setup();
+    let (env, _admin, client) = setup();
     let winner = Address::generate(&env);
     let ctx = symbol_short!("ARENA_1");
     let currency = symbol_short!("XLM");
 
     let result = client.try_distribute_winnings(
-        &admin,
         &ctx,
         &1u32,
         &1u32,
@@ -139,15 +143,14 @@ fn test_negative_amount_returns_error() {
 
 #[test]
 fn test_idempotency_prevents_double_pay_same_key() {
-    let (env, admin, client) = setup();
+    let (env, _admin, client) = setup();
     let winner = Address::generate(&env);
     let ctx = symbol_short!("ARENA_1");
     let currency = symbol_short!("XLM");
 
-    client.distribute_winnings(&admin, &ctx, &7u32, &2u32, &winner, &1000i128, &currency);
+    client.distribute_winnings(&ctx, &7u32, &2u32, &winner, &1000i128, &currency);
 
     let second = client.try_distribute_winnings(
-        &admin,
         &ctx,
         &7u32,
         &2u32,
@@ -160,13 +163,13 @@ fn test_idempotency_prevents_double_pay_same_key() {
 
 #[test]
 fn test_different_round_ids_allow_multiple_payouts() {
-    let (env, admin, client) = setup();
+    let (env, _admin, client) = setup();
     let winner = Address::generate(&env);
     let ctx = symbol_short!("ARENA_1");
     let currency = symbol_short!("USDC");
 
-    client.distribute_winnings(&admin, &ctx, &1u32, &1u32, &winner, &1000i128, &currency);
-    client.distribute_winnings(&admin, &ctx, &1u32, &2u32, &winner, &2000i128, &currency);
+    client.distribute_winnings(&ctx, &1u32, &1u32, &winner, &1000i128, &currency);
+    client.distribute_winnings(&ctx, &1u32, &2u32, &winner, &2000i128, &currency);
 
     assert!(client.is_payout_processed(&ctx, &1u32, &1u32, &winner));
     assert!(client.is_payout_processed(&ctx, &1u32, &2u32, &winner));
@@ -183,13 +186,13 @@ fn test_get_payout_returns_none_for_unprocessed() {
 
 #[test]
 fn test_set_currency_token_enables_token_transfer() {
-    let (env, admin, client, token_id, _treasury) = setup_with_token();
+    let (env, _admin, client, token_id, _treasury) = setup_with_token();
     let winner = Address::generate(&env);
     let ctx = symbol_short!("ARENA_1");
     let currency = symbol_short!("USDC");
 
     client.set_currency_token(&currency, &token_id);
-    client.distribute_winnings(&admin, &ctx, &3u32, &1u32, &winner, &750i128, &currency);
+    client.distribute_winnings(&ctx, &3u32, &1u32, &winner, &750i128, &currency);
 
     let token = TokenClient::new(&env, &token_id);
     assert_eq!(token.balance(&winner), 750i128);
@@ -271,7 +274,7 @@ fn test_distribute_prize_invalid_amount_returns_error() {
 fn payout_record_survives_ttl_threshold() {
     use soroban_sdk::testutils::Ledger;
 
-    let (env, admin, client) = setup();
+    let (env, _admin, client) = setup();
     let winner = Address::generate(&env);
     let ctx = symbol_short!("arena_1");
     let pool_id = 1u32;
@@ -279,7 +282,7 @@ fn payout_record_survives_ttl_threshold() {
     let amount = 500i128;
     let currency = symbol_short!("XLM");
 
-    client.distribute_winnings(&admin, &ctx, &pool_id, &round_id, &winner, &amount, &currency);
+    client.distribute_winnings(&ctx, &pool_id, &round_id, &winner, &amount, &currency);
 
     // Advance ledger past PAYOUT_TTL_THRESHOLD (100_000) — record must still exist.
     env.ledger().with_mut(|l| {
@@ -334,13 +337,13 @@ fn admin_can_pause_and_unpause_payout() {
 
 #[test]
 fn pause_blocks_distribute_winnings() {
-    let (env, admin, client) = setup();
+    let (env, _admin, client) = setup();
     client.pause();
     let winner = Address::generate(&env);
     let ctx = symbol_short!("CTX");
     let currency = symbol_short!("XLM");
     let result = client.try_distribute_winnings(
-        &admin, &ctx, &1u32, &1u32, &winner, &100i128, &currency,
+        &ctx, &1u32, &1u32, &winner, &100i128, &currency,
     );
     assert_eq!(result, Err(Ok(PayoutError::Paused)));
 }
@@ -356,7 +359,7 @@ fn pause_blocks_distribute_prize() {
 
 #[test]
 fn unpause_restores_distribute_winnings() {
-    let (env, admin, client) = setup();
+    let (env, _admin, client) = setup();
     client.pause();
     client.unpause();
     assert!(!client.is_paused());
@@ -365,7 +368,7 @@ fn unpause_restores_distribute_winnings() {
     let currency = symbol_short!("XLM");
     // distribute_winnings requires no actual token transfer, it just records
     let result = client.try_distribute_winnings(
-        &admin, &ctx, &1u32, &1u32, &winner, &100i128, &currency,
+        &ctx, &1u32, &1u32, &winner, &100i128, &currency,
     );
     assert!(result.is_ok(), "should succeed after unpause");
 }
