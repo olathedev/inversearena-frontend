@@ -204,11 +204,13 @@ impl ArenaContract {
     pub fn create_arena(
         env: Env,
         arena_id: u64,
+        host: Address,
         admin: Address,
         token: Address,
         capacity: u32,
         round_speed_in_ledgers: u32,
         required_stake_amount: i128,
+        start_deadline: u64,
     ) -> Result<(), ArenaError> {
         if storage(&env).has(&DataKey::Config(arena_id)) {
             return Err(ArenaError::AlreadyInitialized);
@@ -432,6 +434,11 @@ impl ArenaContract {
         env.storage()
             .instance()
             .set(&SURVIVOR_COUNT_KEY, &(count + 1));
+            
+        let mut players: Vec<Address> = env.storage().instance().get(&PLAYERS_KEY).unwrap_or(Vec::new(&env));
+        players.push_back(player.clone());
+        env.storage().instance().set(&PLAYERS_KEY, &players);
+
         let pool: i128 = env
             .storage()
             .instance()
@@ -592,6 +599,38 @@ impl ArenaContract {
 
         let config = get_config(&env, arena_id)?;
         let refund = config.required_stake_amount;
+        let token: Address = env
+            .storage()
+            .instance()
+            .get(&TOKEN_KEY)
+            .ok_or(ArenaError::TokenNotSet)?;
+        // CEI: effects before interaction
+        storage(&env).remove(&survivor_key);
+        let count: u32 = env
+            .storage()
+            .instance()
+            .get(&SURVIVOR_COUNT_KEY)
+            .unwrap_or(0u32);
+        env.storage()
+            .instance()
+            .set(&SURVIVOR_COUNT_KEY, &count.saturating_sub(1));
+            
+        let mut players: Vec<Address> = env.storage().instance().get(&PLAYERS_KEY).unwrap_or(Vec::new(&env));
+        if let Some(i) = players.first_index_of(player.clone()) {
+            players.remove(i);
+        }
+        env.storage().instance().set(&PLAYERS_KEY, &players);
+
+        let pool: i128 = env
+            .storage()
+            .instance()
+            .get(&PRIZE_POOL_KEY)
+            .unwrap_or(0i128);
+        env.storage()
+            .instance()
+            .set(&PRIZE_POOL_KEY, &(pool - refund));
+        token::Client::new(&env, &token).transfer(&env.current_contract_address(), &player, &refund);
+        env.events().publish((TOPIC_LEAVE,), (player, refund));
 
         state.prize_pool = state
             .prize_pool
